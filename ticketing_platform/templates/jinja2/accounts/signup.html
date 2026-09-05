@@ -1,38 +1,204 @@
 {% extends "base/layout.html" %}
-{% block title %}Sign up · TickIt{% endblock %}
+
+{% block title %}Sign Up · TickIt Pass Platform{% endblock %}
 {% block container_class %}{% endblock %}
 
 {% block content %}
 <div class="auth-shell">
-  <div class="auth-card" style="max-width:460px;">
+  <div class="auth-card cursor-target" data-card-label="TICKIT // REGISTRATION GATE" style="max-width:520px;">
+    <div class="shadow__auth-card"></div>
     <div class="auth-logo">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1.5a2.5 2.5 0 0 0 0-5V9Z" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round"/>
-        <path d="M15 7v10" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="2 2.5" stroke-linecap="round"/>
-      </svg>
-      TickIt
+      <span class="brand-ticket-badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1.5a2.5 2.5 0 0 0 0-5V9Z" fill="#151313" stroke="#151313" stroke-width="1.8"/>
+          <path d="M15 7v10" stroke="#FFFAEF" stroke-width="2" stroke-dasharray="2 2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-text">TICKIT</span>
     </div>
-    <h1 class="auth-title">Create your account</h1>
-    <p class="auth-sub">Join as an attendee or organizer — you pick at signup.</p>
+
+    <h1 class="auth-title">CREATE ACCOUNT</h1>
+    <p class="auth-sub">Register as an Attendee or Event Organizer (role is set once upon sign-up).</p>
 
     {% if form.non_field_errors() %}
-      <div class="alert alert-error" style="margin-bottom:1rem;">
+      <div class="alert alert-error" style="margin-bottom:var(--space-4);">
         {{ form.non_field_errors() }}
       </div>
     {% endif %}
 
-    <form method="post">
+    <form method="post" class="auth-form-3d">
       {{ csrf_input }}
-      {{ form.as_p() }}
-      <div class="form-actions" style="margin-top:1.25rem;">
-        <button type="submit" class="btn btn-primary btn-xl btn-block">Create account</button>
+
+      <!-- Username 3D Input (Uiverse.io by 0xnihilism) -->
+      <div class="input__wrapper">
+        <div class="input__container cursor-target" data-label="USERNAME">
+          <div class="shadow__input"></div>
+          <button type="button" class="input__button__shadow" tabindex="-1" aria-label="Username">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="#000000"
+              width="20px"
+              height="20px"
+            >
+              <path d="M0 0h24v24H0z" fill="none"></path>
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              ></path>
+            </svg>
+          </button>
+          <input
+            type="text"
+            name="username"
+            id="id_username"
+            class="input__search cursor-target"
+            placeholder="Enter username"
+            value="{{ form.username.value() or '' }}"
+            required
+            autocomplete="username"
+          />
+        </div>
+        {% if form.username.errors %}
+          <div class="field-error-notice">{{ form.username.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Email 3D Input (Uiverse.io by 0xnihilism) -->
+      <div class="input__wrapper">
+        <div class="input__container cursor-target" data-label="EMAIL">
+          <div class="shadow__input"></div>
+          <button type="button" class="input__button__shadow" tabindex="-1" aria-label="Email">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="#000000"
+              width="20px"
+              height="20px"
+            >
+              <path d="M0 0h24v24H0z" fill="none"></path>
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"></path>
+            </svg>
+          </button>
+          <input
+            type="email"
+            name="email"
+            id="id_email"
+            class="input__search cursor-target"
+            placeholder="Enter email address"
+            value="{{ form.email.value() or '' }}"
+            required
+            autocomplete="email"
+          />
+        </div>
+        {% if form.email.errors %}
+          <div class="field-error-notice">{{ form.email.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Account Role 3D Selector (Uiverse.io by 0xnihilism) -->
+      <div class="input__wrapper">
+        <div class="input__container cursor-target" data-label="ACCOUNT ROLE">
+          <div class="shadow__input"></div>
+          <button type="button" class="input__button__shadow" tabindex="-1" aria-label="Role">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="#000000"
+              width="20px"
+              height="20px"
+            >
+              <path d="M0 0h24v24H0z" fill="none"></path>
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"></path>
+            </svg>
+          </button>
+          <select name="role" id="id_role" class="input__search cursor-target">
+            <option value="attendee" {% if form.role.value() == 'attendee' or not form.role.value() %}selected{% endif %}>ATTENDEE (BUY TICKETS)</option>
+            <option value="organizer" {% if form.role.value() == 'organizer' %}selected{% endif %}>ORGANIZER (HOST EVENTS)</option>
+          </select>
+        </div>
+        {% if form.role.errors %}
+          <div class="field-error-notice">{{ form.role.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Password 3D Input (Uiverse.io by 0xnihilism) -->
+      <div class="input__wrapper">
+        <div class="input__container cursor-target" data-label="PASSWORD">
+          <div class="shadow__input"></div>
+          <button type="button" class="input__button__shadow" tabindex="-1" aria-label="Password">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="#000000"
+              width="20px"
+              height="20px"
+            >
+              <path d="M0 0h24v24H0z" fill="none"></path>
+              <path
+                d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+              ></path>
+            </svg>
+          </button>
+          <input
+            type="password"
+            name="password1"
+            id="id_password1"
+            class="input__search cursor-target"
+            placeholder="Create strong password"
+            required
+            autocomplete="new-password"
+          />
+        </div>
+        {% if form.password1.errors %}
+          <div class="field-error-notice">{{ form.password1.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Confirm Password 3D Input (Uiverse.io by 0xnihilism) -->
+      <div class="input__wrapper">
+        <div class="input__container cursor-target" data-label="CONFIRM PASSWORD">
+          <div class="shadow__input"></div>
+          <button type="button" class="input__button__shadow" tabindex="-1" aria-label="Confirm Password">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="#000000"
+              width="20px"
+              height="20px"
+            >
+              <path d="M0 0h24v24H0z" fill="none"></path>
+              <path
+                d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+              ></path>
+            </svg>
+          </button>
+          <input
+            type="password"
+            name="password2"
+            id="id_password2"
+            class="input__search cursor-target"
+            placeholder="Confirm password"
+            required
+            autocomplete="new-password"
+          />
+        </div>
+        {% if form.password2.errors %}
+          <div class="field-error-notice">{{ form.password2.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-actions" style="margin-top:var(--space-6);">
+        <button type="submit" class="btn btn-primary btn-lg cursor-target" style="width:100%;">
+          COMPLETE REGISTRATION →
+        </button>
       </div>
     </form>
 
     <div class="auth-footer">
-      Already have an account? <a href="{{ url('accounts:login') }}">Log in</a>
+      Already have an account? <a href="{{ url('accounts:login') }}" class="cursor-target">Sign in here</a>
     </div>
   </div>
 </div>
 {% endblock %}
+
 

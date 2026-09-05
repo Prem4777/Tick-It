@@ -1,12 +1,13 @@
 {% extends "base/layout.html" %}
-{% block title %}{{ title }} · TickIt{% endblock %}
+
+{% block title %}{{ title }} · TickIt Tier Configuration{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
-    <span class="breadcrumb__sep">›</span>
+    <a href="{{ url('events:organizer_event_list') }}">MY EVENTS</a>
+    <span class="breadcrumb__sep" aria-hidden="true">›</span>
     <a href="{{ url('events:organizer_event_detail', event.pk) }}">{{ event.name }}</a>
-    <span class="breadcrumb__sep">›</span>
+    <span class="breadcrumb__sep" aria-hidden="true">›</span>
     <span class="breadcrumb__current">{{ title }}</span>
   </nav>
 
@@ -16,9 +17,9 @@
   </div>
 
   {%- set remaining = event.allocated_capacity - used_capacity -%}
-  <div class="stat-row" style="max-width:480px;margin-bottom:1.5rem;">
-    <div class="stat-card stat-card--accent">
-      <p class="stat-card__label">Event cap</p>
+  <div class="stat-row mb-4" style="max-width:540px;">
+    <div class="stat-card stat-card--orange">
+      <p class="stat-card__label">EVENT ALLOCATION</p>
       <p class="stat-card__value">{{ event.allocated_capacity }}</p>
       <p class="stat-card__sub">TOTAL EVENT SEATS</p>
     </div>
@@ -28,61 +29,22 @@
       <p class="stat-card__sub">ACROSS OTHER TIERS</p>
     </div>
     <div class="stat-card{% if remaining == 0 %} stat-card--red{% else %} stat-card--green{% endif %}">
-      <p class="stat-card__label">Remaining</p>
+      <p class="stat-card__label">UNALLOCATED BALANCE</p>
       <p class="stat-card__value">{{ remaining }}</p>
       <p class="stat-card__sub">AVAILABLE FOR THIS TIER</p>
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:900px;">
-
-    {# ── Form ─────────────────────────────────────────────── #}
+  <div class="form-shell">
     <div class="form-wrap">
       {% if form.non_field_errors() %}
-        <div class="alert alert-error" style="margin-bottom:1rem;">
+        <div class="alert alert-error" style="margin-bottom:var(--space-4);">
           {{ form.non_field_errors() }}
         </div>
       {% endif %}
-      <form method="post" id="tier-form">
+      <form method="post">
         {{ csrf_input }}
-
-        <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:.3rem;">Tier name</label>
-          {{ form.name }}
-          {% if form.name.errors %}<p style="color:var(--err);font-size:.78rem;margin-top:.2rem;">{{ form.name.errors|join(' ') }}</p>{% endif %}
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
-          <div>
-            <label style="display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:.3rem;">Price (₹)</label>
-            {{ form.price }}
-            {% if form.price.errors %}<p style="color:var(--err);font-size:.78rem;margin-top:.2rem;">{{ form.price.errors|join(' ') }}</p>{% endif %}
-          </div>
-          <div>
-            <label style="display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:.3rem;">Quantity</label>
-            {{ form.quantity_total }}
-            {% if form.quantity_total.errors %}<p style="color:var(--err);font-size:.78rem;margin-top:.2rem;">{{ form.quantity_total.errors|join(' ') }}</p>{% endif %}
-          </div>
-        </div>
-
-        <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:.3rem;">
-            Short description <span style="color:var(--t4);font-weight:400;">(optional)</span>
-          </label>
-          {{ form.description }}
-          <p style="font-size:.72rem;color:var(--t4);margin-top:.2rem;">Shown as a subtitle on the tier card.</p>
-          {% if form.description.errors %}<p style="color:var(--err);font-size:.78rem;margin-top:.2rem;">{{ form.description.errors|join(' ') }}</p>{% endif %}
-        </div>
-
-        <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:.3rem;">
-            Benefits <span style="color:var(--t4);font-weight:400;">(optional)</span>
-          </label>
-          {{ form.benefits }}
-          <p style="font-size:.72rem;color:var(--t4);margin-top:.2rem;">One benefit per line. Shown as checkmark bullets on the ticket card.</p>
-          {% if form.benefits.errors %}<p style="color:var(--err);font-size:.78rem;margin-top:.2rem;">{{ form.benefits.errors|join(' ') }}</p>{% endif %}
-        </div>
-
+        {{ form.as_p() }}
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">SAVE TIER SPECIFICATION →</button>
           <a href="{{ url('events:organizer_event_detail', event.pk) }}" class="btn btn-ghost">CANCEL</a>
@@ -90,79 +52,15 @@
       </form>
     </div>
 
-    {# ── Live preview ─────────────────────────────────────── #}
-    <div>
-      <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t4);margin-bottom:.75rem;">Live preview</p>
-
-      <div id="tier-preview" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--shadow-sm);">
-        <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);">
-          <div id="prev-badge" style="display:none;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:var(--accent-pale);padding:.2em .7em;border-radius:999px;margin-bottom:8px;width:fit-content;"></div>
-          <p id="prev-name" style="font-size:1.05rem;font-weight:800;color:var(--t1);margin:0 0 3px;letter-spacing:-.02em;">Tier name</p>
-          <p id="prev-desc" style="font-size:.82rem;color:var(--t3);margin:0;"></p>
-          <p id="prev-price" style="font-size:1.65rem;font-weight:800;color:var(--accent);margin:8px 0 0;letter-spacing:-.03em;">₹0</p>
-          <p style="font-size:.75rem;color:var(--ok);margin:4px 0 0;font-weight:600;">Available</p>
-        </div>
-        <div id="prev-benefits" style="padding:14px 20px;display:none;">
-          <ul id="prev-benefits-list" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;"></ul>
-        </div>
-        <div style="padding:14px 20px;border-top:1px solid var(--border);">
-          <div style="background:var(--accent);color:#fff;text-align:center;padding:.55em;border-radius:var(--r);font-size:.875rem;font-weight:700;">Reserve</div>
-        </div>
-      </div>
-
-      <div class="form-hint" style="margin-top:1rem;">
-        <p class="form-hint__title">Tips</p>
-        <ul>
-          <li>Total quantity across all tiers cannot exceed {{ event.allocated_capacity }}.</li>
-          <li>You cannot shrink a tier below what's already sold or reserved.</li>
-          <li>Set price to 0 for free admission.</li>
-          <li>Benefits show as checkmark bullets — be specific.</li>
-        </ul>
-      </div>
-    </div>
-
+    <aside class="form-hint">
+      <h3 class="form-hint__title">QUOTA RULES</h3>
+      <ul>
+        <li>Cumulative tier quantities must not exceed the event's total allocation ({{ event.allocated_capacity }}).</li>
+        <li>Tiers cannot be reduced below tickets already sold or reserved.</li>
+        <li>Name convention: <em>General Admission</em>, <em>VIP Pass</em>, <em>Early Bird</em>.</li>
+        <li>Price is denominated in INR (₹) — enter 0 for complimentary entry.</li>
+      </ul>
+    </aside>
   </div>
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-const nameEl     = document.getElementById('id_name');
-const priceEl    = document.getElementById('id_price');
-const descEl     = document.getElementById('id_description');
-const benefitsEl = document.getElementById('id_benefits');
-
-const prevName     = document.getElementById('prev-name');
-const prevDesc     = document.getElementById('prev-desc');
-const prevPrice    = document.getElementById('prev-price');
-const prevBenWrap  = document.getElementById('prev-benefits');
-const prevBenList  = document.getElementById('prev-benefits-list');
-
-function update() {
-  if (prevName)  prevName.textContent  = nameEl?.value  || 'Tier name';
-  if (prevDesc)  prevDesc.textContent  = descEl?.value  || '';
-  if (prevPrice) {
-    const p = parseFloat(priceEl?.value) || 0;
-    prevPrice.textContent = p === 0 ? 'Free' : '₹' + p.toFixed(2);
-    prevPrice.style.color = p === 0 ? 'var(--ok)' : 'var(--accent)';
-  }
-  if (benefitsEl && prevBenWrap && prevBenList) {
-    const lines = benefitsEl.value.split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length) {
-      prevBenList.innerHTML = lines.map(l =>
-        `<li style="font-size:.845rem;color:var(--t2);display:flex;align-items:flex-start;gap:7px;line-height:1.45;">
-           <span style="display:block;flex-shrink:0;width:15px;height:15px;margin-top:1px;background:var(--ok);border-radius:50%;background-image:url('data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'10\\' height=\\'8\\' viewBox=\\'0 0 10 8\\'%3E%3Cpath d=\\'M1 4l3 3 5-6\\' stroke=\\'white\\' stroke-width=\\'1.5\\' fill=\\'none\\' stroke-linecap=\\'round\\'/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:center;"></span>
-           ${l}
-         </li>`
-      ).join('');
-      prevBenWrap.style.display = 'block';
-    } else {
-      prevBenWrap.style.display = 'none';
-    }
-  }
-}
-
-[nameEl, priceEl, descEl, benefitsEl].forEach(el => el?.addEventListener('input', update));
-update();
-</script>
 {% endblock %}
 

@@ -1,250 +1,408 @@
 {% extends "base/layout.html" %}
-{% block title %}Check-in · {{ event.name }} · TickIt{% endblock %}
+
+{% block title %}Scanner &amp; Check-In · {{ event.name }} · TickIt{% endblock %}
 
 {% block content %}
-  <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
-    <span class="breadcrumb__sep">›</span>
-    <a href="{{ url('events:organizer_event_detail', event.pk) }}">{{ event.name }}</a>
-    <span class="breadcrumb__sep">›</span>
-    <span class="breadcrumb__current">Check-in</span>
-  </nav>
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="{{ url('events:home') }}">DISCOVER</a>
+  <span class="breadcrumb__sep" aria-hidden="true">›</span>
+  <a href="{{ url('events:organizer_event_detail', event.pk) }}">{{ event.name }}</a>
+  <span class="breadcrumb__sep" aria-hidden="true">›</span>
+  <span class="breadcrumb__current">SCANNER</span>
+</nav>
 
-  <div class="checkin-wrap">
-
-    {# Hero #}
-    <div class="checkin-hero">
-      <h2>{{ event.name }}</h2>
-      <p>{{ event.venue.name }} · {{ event.date.strftime('%A, %B %-d, %Y · %-I:%M %p') }}</p>
-    </div>
-
-    {# Status message #}
-    <div class="checkin-status" id="checkin-status">
-      Scan a QR code or enter it manually below.
-    </div>
-
-    {# Scanner card #}
-    <div class="panel mb-3">
-      <p class="section-title" style="margin-bottom:.875rem;">Single scan</p>
-
-      <div class="checkin-input-group">
-        <input class="checkin-input" type="text" id="qr-input" placeholder="Paste or type QR code…" autocomplete="off" autocorrect="off" spellcheck="false">
-        <button class="btn btn-primary" type="button" id="scan-btn">Check in</button>
+<div class="event-layout">
+  <div class="event-layout__main">
+    <div class="scanner-shell">
+      <div class="page-header" style="text-align:center;margin-bottom:var(--space-4);">
+        <p class="page-header__eyebrow">HIGH-CONTRAST ADMISSION TERMINAL</p>
+        <h1 class="page-header__title" style="font-size:3rem;">CHECK-IN SCANNER</h1>
+        <p class="page-header__sub">
+          <strong>{{ event.name }}</strong> &bull; {{ event.venue.name }} &bull; {{ event.date.strftime('%b %d, %Y') }}
+        </p>
       </div>
 
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;">
-        <button class="btn btn-secondary btn-sm" type="button" id="camera-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          Scan with camera
-        </button>
+      <!-- Live Scan Status Banner (§36) -->
+      <div class="scanner-status-banner" id="checkin-status">
+        POINT CAMERA AT TICKET QR CODE OR PASTE CODE
       </div>
 
-      {# Camera feed #}
-      <div id="camera-feed" style="display:none;margin-top:.75rem;">
-        <video id="video" autoplay playsinline style="width:100%;max-width:320px;border-radius:var(--r);display:block;"></video>
-        <canvas id="canvas" style="display:none;"></canvas>
-        <p id="scanner-status" style="font-size:.78rem;color:var(--t3);margin:.4rem 0 0;"></p>
+      <!-- Scanner Frame & Viewport (§36, §37) -->
+      <div class="scanner-frame mt-4">
+        <div class="scanner-viewport">
+          <div class="scan-corner scan-corner--tl"></div>
+          <div class="scan-corner scan-corner--tr"></div>
+          <div class="scan-corner scan-corner--bl"></div>
+          <div class="scan-corner scan-corner--br"></div>
+          <div class="scan-line"></div>
+
+          <div id="camera-feed" style="display:none;width:100%;height:100%;">
+            <video id="video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+          </div>
+
+          <div id="camera-placeholder" style="text-align:center;padding:var(--space-4);color:rgba(255,250,239,0.7);">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto var(--space-2);box-shadow:0 0 16px var(--neon-glow-cyan);">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <p style="font-family:var(--font-mono);font-size:0.75rem;margin:0;">READY FOR ADMISSION SCAN</p>
+          </div>
+        </div>
+
+        <p id="scanner-status" style="font-family:var(--font-mono);font-size:0.75rem;color:var(--orange);text-align:center;margin:var(--space-2) 0;min-height:18px;"></p>
+
+        <!-- Scanner Controls -->
+        <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-4);">
+          <div style="display:flex;gap:var(--space-2);">
+            <input type="text" class="filter-input" id="qr-code-input" placeholder="Enter or paste ticket pass code..." aria-label="QR code input">
+            <button class="btn btn-primary" type="button" id="scan-btn">VALIDATE</button>
+          </div>
+
+          <div style="display:flex;gap:var(--space-2);justify-content:center;">
+            <button class="btn btn-secondary" type="button" id="camera-btn">
+              📷 START CAMERA SCANNER
+            </button>
+            <button class="btn btn-ghost" type="button" id="toggle-bulk-btn" style="color:var(--paper);border-color:rgba(255,250,239,0.4);">
+              ⚡ BATCH / BULK CODES
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multiple QR Codes Bulk Section -->
+      <div id="checkin-qr-codes" class="panel mt-4" style="display:none;">
+        <h3 class="section-title" style="font-size:1.4rem;">BULK QR CODE CHECK-IN</h3>
+        <p style="font-size:0.85rem;color:var(--ink-muted);margin-bottom:var(--space-3);">
+          Enter one unique ticket code per line (up to 100 codes per batch).
+        </p>
+        <textarea id="qr-textarea" rows="4" placeholder="8F93A12BC4...&#10;7B10C99AA1..."></textarea>
+        <div class="mt-3">
+          <button class="btn btn-primary" type="button" id="bulk-scan-btn">VALIDATE BATCH →</button>
+        </div>
+      </div>
+
+      <!-- Check-In Results List -->
+      <div id="checkin-results" class="panel mt-4" style="display:none;">
+        <h3 class="section-title" style="font-size:1.4rem;margin-bottom:var(--space-3);">VERIFICATION RESULTS</h3>
+        <div id="checkin-results-list" style="display:flex;flex-direction:column;gap:var(--space-2);"></div>
       </div>
     </div>
-
-    {# Single result #}
-    <div id="single-result" style="display:none;" class="mb-3"></div>
-
-    {# Bulk scan #}
-    <div class="panel mb-3">
-      <p class="section-title" style="margin-bottom:.875rem;">Bulk scan</p>
-      <p style="font-size:.845rem;color:var(--t3);margin:0 0 .75rem;">Enter one QR code per line (max 100).</p>
-      <textarea class="qr-textarea" id="qr-bulk" rows="4" placeholder="QR code 1&#10;QR code 2&#10;QR code 3"></textarea>
-      <div style="margin-top:.5rem;">
-        <button class="btn btn-primary btn-sm" type="button" id="bulk-btn">Validate all</button>
-      </div>
-    </div>
-
-    {# Bulk results #}
-    <div id="bulk-results" style="display:none;">
-      <p class="section-title" style="margin-bottom:.75rem;">Results</p>
-      <div id="bulk-results-list"></div>
-    </div>
-
   </div>
 
-  {# Hidden CSRF token for JS fetch calls #}
-  <form id="csrf-form" style="display:none;">{{ csrf_input }}</form>
-{% endblock %}
+  <aside class="event-layout__aside">
+    {% if user.is_authenticated and user.profile.role == 'organizer' and event.organizer_id == user.id %}
+      <div class="panel card--accent-orange">
+        <h3 class="section-title" style="font-size:1.4rem;margin-bottom:var(--space-3);">TERMINAL TOOLS</h3>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">
+          <li>
+            <a href="{{ url('events:organizer_event_detail', pk=event.pk) }}" class="btn btn-secondary btn-sm" style="width:100%;">
+              ← EVENT DASHBOARD
+            </a>
+          </li>
+          <li>
+            <a href="{{ url('events:event_bulk_import', event.pk) }}" class="btn btn-outline btn-sm" style="width:100%;">
+              ✦ BULK IMPORT VIP (CSV)
+            </a>
+          </li>
+          <li>
+            <a href="{{ url('tickets:my_tickets') }}" class="btn btn-ghost btn-sm" style="width:100%;">
+              MY PERSONAL WALLET
+            </a>
+          </li>
+        </ul>
+      </div>
+    {% endif %}
+  </aside>
+</div>
 
-{% block extra_scripts %}
-<script>
-(function () {
-  const eventId    = {{ event.pk }};
-  const baseUrl    = window.location.origin + window.location.pathname;
-  const bulkUrl    = baseUrl.replace(/\/$/, '') + '/bulk/';
-  const statusEl   = document.getElementById('checkin-status');
-  const qrInput    = document.getElementById('qr-input');
-  const scanBtn    = document.getElementById('scan-btn');
-  const cameraBtn  = document.getElementById('camera-btn');
-  const cameraFeed = document.getElementById('camera-feed');
-  const video      = document.getElementById('video');
-  const canvas     = document.getElementById('canvas');
-  const scanStatus = document.getElementById('scanner-status');
-  const singleRes  = document.getElementById('single-result');
-  const bulkBtn    = document.getElementById('bulk-btn');
-  const bulkArea   = document.getElementById('qr-bulk');
-  const bulkRes    = document.getElementById('bulk-results');
-  const bulkList   = document.getElementById('bulk-results-list');
+<form id="csrf-form" style="display:none;">
+  {{ csrf_input }}
+</form>
 
-  function getCSRF() {
-    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+<script type="module">
+// Load jsQR library for QR code detection from CDN
+const jsQRScript = document.createElement('script');
+jsQRScript.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+document.head.appendChild(jsQRScript);
+
+let qrCodeInput = document.getElementById('qr-code-input');
+let scanBtn = document.getElementById('scan-btn');
+let scanningInterval;
+let checkinStatus = document.getElementById('checkin-status');
+let checkinResults = document.getElementById('checkin-results');
+let checkinResultsList = document.getElementById('checkin-results-list');
+let qrCodesTextarea = document.getElementById('qr-textarea');
+let bulkScanBtn = document.getElementById('bulk-scan-btn');
+let checkinQrCodes = document.getElementById('checkin-qr-codes');
+let toggleBulkBtn = document.getElementById('toggle-bulk-btn');
+
+if (toggleBulkBtn && checkinQrCodes) {
+  toggleBulkBtn.addEventListener('click', () => {
+    checkinQrCodes.style.display = (checkinQrCodes.style.display === 'none') ? 'block' : 'none';
+  });
+}
+
+// Show banner feedback with high-impact color roles (§36, §37)
+function showMessage(type, message) {
+  if (!checkinStatus) return;
+  checkinStatus.className = 'scanner-status-banner';
+  if (type === 'success') {
+    checkinStatus.classList.add('scanner-status-banner--success');
+  } else if (type === 'duplicate') {
+    checkinStatus.classList.add('scanner-status-banner--duplicate');
+  } else if (type === 'error') {
+    checkinStatus.classList.add('scanner-status-banner--invalid');
   }
+  checkinStatus.textContent = message;
+}
 
-  function setStatus(type, msg) {
-    statusEl.className = 'checkin-status checkin-status--' + type;
-    statusEl.textContent = msg;
+// Render checkin result items
+function renderResult(result, isSuccess) {
+  if (!checkinResults || !checkinResultsList) return;
+  const statusClass = (result.status || '').replace(/_/g, '-');
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.style.padding = '10px 14px';
+  div.style.display = 'flex';
+  div.style.justifyContent = 'space-between';
+  div.style.alignItems = 'center';
+  div.style.flexWrap = 'wrap';
+  div.style.gap = '8px';
+
+  div.innerHTML = `
+    <div>
+      <span class="mono" style="font-weight:700;font-size:0.85rem;">PASS: ${result.qr_code || ''}</span>
+      ${result.message ? `<div style="font-size:0.8rem;color:var(--ink-muted);">${result.message}</div>` : ''}
+    </div>
+    <span class="badge badge-${statusClass}">
+      ${(result.status || 'unknown').replace(/_/g, ' ').toUpperCase()}
+    </span>
+  `;
+  checkinResultsList.prepend(div);
+  checkinResults.style.display = 'block';
+}
+
+function showResults(results) {
+  if (!checkinResults || !checkinResultsList) return;
+  checkinResultsList.innerHTML = '';
+  results.forEach(r => renderResult(r, r.status === 'checked_in'));
+  checkinResults.style.display = 'block';
+}
+
+function getCSRFToken() {
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+  return csrfToken ? csrfToken.value : '';
+}
+
+async function handleSingleCheckIn(qrCode) {
+  if (!qrCode || !qrCode.trim()) {
+    showMessage('error', 'PLEASE PROVIDE A VALID PASS CODE');
+    return;
   }
+  showMessage('loading', 'VALIDATING DIGITAL PASS...');
 
-  function resultHtml(r) {
-    const statusMap = {
-      'checked_in':       { cls: 'badge-valid',     label: 'Checked in' },
-      'already_checked_in':{ cls: 'badge-checked_in', label: 'Already scanned' },
-      'invalid_qr':       { cls: 'badge-cancelled',  label: 'Invalid QR' },
-      'wrong_event':      { cls: 'badge-cancelled',  label: 'Wrong event' },
-      'ticket_not_eligible':{ cls: 'badge-expired',  label: 'Not eligible' },
-    };
-    const s = statusMap[r.status] || { cls: 'badge-expired', label: r.status };
-    return `<div class="checkin-result-item">
-      <span class="checkin-result-qr">${r.qr_code || '—'}</span>
-      <span class="badge ${s.cls} checkin-result-status">${s.label}</span>
-      ${r.message ? `<span class="checkin-result-message">${r.message}</span>` : ''}
-    </div>`;
-  }
+  try {
+    const response = await fetch(window.location.href, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken(),
+      },
+      body: JSON.stringify({ qr_code: qrCode }),
+      credentials: 'same-origin',
+    });
 
-  /* ── Single scan ───────────────────────────────── */
-  async function doScan(code) {
-    code = code.trim();
-    if (!code) { setStatus('error', 'Enter a QR code first.'); return; }
-    setStatus('loading', 'Validating…');
-    try {
-      const resp = await fetch(baseUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
-        credentials: 'same-origin',
-        body: JSON.stringify({ qr_code: code }),
-      });
-      const data = await resp.json();
-      if (data.status === 'checked_in') {
-        setStatus('success', '✓ Checked in successfully');
-        broadcastCheckin(data.ticket_id, code, data.checked_in_at);
+    const result = await response.json();
+
+    if (response.ok) {
+      if (result.status === 'checked_in') {
+        showMessage('success', 'ENTRY APPROVED — PASS VALIDATED');
+      } else if (result.status === 'already_checked_in' || result.status === 'duplicate') {
+        showMessage('duplicate', 'ALREADY CHECKED IN — DUPLICATE ENTRY');
       } else {
-        setStatus('error', data.message || 'Validation failed');
+        showMessage('success', result.message || 'TICKET VERIFIED');
       }
-      singleRes.style.display = 'block';
-      singleRes.innerHTML = resultHtml({ ...data, qr_code: code });
-      qrInput.value = '';
-      qrInput.focus();
-    } catch (e) {
-      setStatus('error', 'Network error — please try again.');
+      renderResult(result, true);
+
+      if (result.status === 'checked_in') {
+        try {
+          const channel = new BroadcastChannel('tickit_checkin');
+          channel.postMessage({
+            ticket_id: result.ticket_id,
+            unique_code: qrCode,
+            status: 'checked_in',
+            checked_in_at: result.checked_in_at
+          });
+        } catch(e) {}
+        try {
+          localStorage.setItem('tickit_last_checkin', JSON.stringify({
+            ticket_id: result.ticket_id,
+            unique_code: qrCode,
+            status: 'checked_in',
+            checked_in_at: result.checked_in_at,
+            timestamp: Date.now()
+          }));
+        } catch(e) {}
+      }
+    } else {
+      showMessage('error', result.message || 'INVALID PASS — ADMISSION DENIED');
+      renderResult(result, false);
     }
+  } catch (err) {
+    showMessage('error', 'COMMUNICATION ERROR — PLEASE TRY AGAIN');
+    console.error(err);
   }
+}
 
-  scanBtn.addEventListener('click', () => doScan(qrInput.value));
-  qrInput.addEventListener('keydown', e => { if (e.key === 'Enter') doScan(qrInput.value); });
+async function handleBulkCheckIn() {
+  const qrText = qrCodesTextarea.value.trim();
+  if (!qrText) {
+    showMessage('error', 'PLEASE ENTER PASS CODES');
+    return;
+  }
+  const codes = qrText.split('\n').map(c => c.trim()).filter(Boolean);
+  if (!codes.length) return;
 
-  /* ── Bulk scan ─────────────────────────────────── */
-  async function doBulk() {
-    const codes = bulkArea.value.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!codes.length) { setStatus('error', 'Enter at least one QR code.'); return; }
-    if (codes.length > 100) { setStatus('error', 'Max 100 codes per batch.'); return; }
-    setStatus('loading', `Validating ${codes.length} codes…`);
-    try {
-      const resp = await fetch(bulkUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
-        credentials: 'same-origin',
-        body: JSON.stringify({ qr_codes: codes }),
-      });
-      const data = await resp.json();
-      const results = data.results || [];
-      const checked = results.filter(r => r.status === 'checked_in').length;
-      setStatus(checked > 0 ? 'success' : 'error', `${checked} of ${codes.length} checked in`);
-      bulkList.innerHTML = results.map(resultHtml).join('');
-      bulkRes.style.display = 'block';
-      results.filter(r => r.status === 'checked_in').forEach(r => broadcastCheckin(r.ticket_id, r.qr_code));
-    } catch (e) {
-      setStatus('error', 'Network error — please try again.');
+  showMessage('loading', 'PROCESSING ' + codes.length + ' PASSES...');
+  try {
+    const response = await fetch(`${window.location.origin}${window.location.pathname}bulk/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken(),
+      },
+      body: JSON.stringify({ qr_codes: codes }),
+      credentials: 'same-origin',
+    });
+    const result = await response.json();
+    if (response.ok) {
+      showResults(result.results);
+      showMessage('success', 'PROCESSED ' + codes.length + ' PASSES');
+    } else {
+      showMessage('error', result.message || 'BATCH VALIDATION FAILED');
     }
+  } catch(e) {
+    showMessage('error', 'BATCH ERROR');
   }
+}
 
-  bulkBtn.addEventListener('click', doBulk);
+function initScanner() {
+  const cameraBtn = document.getElementById('camera-btn');
+  const cameraFeed = document.getElementById('camera-feed');
+  const placeholder = document.getElementById('camera-placeholder');
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const scannerStatus = document.getElementById('scanner-status');
+  let stream = null;
+  let scanning = false;
 
-  /* ── Broadcast to other tabs ───────────────────── */
-  function broadcastCheckin(ticketId, code, checkedInAt) {
-    const payload = { ticket_id: ticketId, unique_code: code, checked_in_at: checkedInAt, timestamp: Date.now() };
-    try { new BroadcastChannel('tickit_checkin').postMessage(payload); } catch (_) {}
-    try { localStorage.setItem('tickit_last_checkin', JSON.stringify(payload)); } catch (_) {}
-  }
+  if (!cameraBtn) return;
 
-  /* ── Camera scanner ────────────────────────────── */
-  let stream = null, scanLoop = null;
-
-  cameraBtn.addEventListener('click', () => {
-    if (stream) { stopCamera(); return; }
-    startCamera();
+  cameraBtn.addEventListener('click', function() {
+    if (stream) {
+      stopScanner();
+    } else {
+      startScanner();
+    }
   });
 
-  async function startCamera() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus('error', 'Camera not supported. Use HTTPS or a modern browser.');
+  function startScanner() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showMessage('error', 'CAMERA NOT SUPPORTED OR INSECURE CONTEXT');
       return;
     }
-    cameraBtn.textContent = 'Starting camera…';
+    cameraBtn.textContent = 'STARTING CAMERA...';
     cameraBtn.disabled = true;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-      video.srcObject = stream;
-      cameraFeed.style.display = 'block';
-      video.addEventListener('loadeddata', () => {
-        cameraBtn.textContent = '⏹ Stop camera';
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }
+    }).then(function(mediaStream) {
+      stream = mediaStream;
+      video.srcObject = mediaStream;
+      if (placeholder) placeholder.style.display = 'none';
+      if (cameraFeed) cameraFeed.style.display = 'block';
+
+      video.addEventListener('loadeddata', function onLoaded() {
+        video.removeEventListener('loadeddata', onLoaded);
+        cameraBtn.textContent = '⏹ STOP CAMERA';
         cameraBtn.disabled = false;
-        scanStatus.textContent = 'Scanning — point camera at a QR code…';
-        startLoop();
-      }, { once: true });
-    } catch (e) {
-      cameraBtn.textContent = 'Scan with camera';
+        scannerStatus.textContent = 'ACTIVE SCANNING — AIM AT ATTENDEE QR CODE';
+        startScanning();
+      });
+    }).catch(function(err) {
+      cameraBtn.textContent = '📷 START CAMERA SCANNER';
       cameraBtn.disabled = false;
-      setStatus('error', e.name === 'NotAllowedError' ? 'Camera permission denied.' : 'Could not access camera.');
-    }
+      showMessage('error', 'CAMERA ACCESS ERROR: ' + err.message);
+    });
   }
 
-  function startLoop() {
+  function startScanning() {
+    if (scanning) return;
+    scanning = true;
+    canvas.width = video.videoWidth || 256;
+    canvas.height = video.videoHeight || 256;
     const ctx = canvas.getContext('2d');
-    scanLoop = setInterval(() => {
-      if (!stream || video.readyState < video.HAVE_ENOUGH_DATA) return;
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      if (typeof jsQR === 'undefined') return;
-      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-      if (code?.data) { clearInterval(scanLoop); stopCamera(); doScan(code.data); }
+
+    scanningInterval = setInterval(function() {
+      if (!stream) { clearInterval(scanningInterval); scanning = false; return; }
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imgData.data, imgData.width, imgData.height, {
+        inversionAttempts: 'dontInvert',
+      });
+
+      if (code && code.data) {
+        clearInterval(scanningInterval);
+        scanning = false;
+        stopScanner();
+        qrCodeInput.value = code.data;
+        handleSingleCheckIn(code.data);
+      }
     }, 250);
   }
 
-  function stopCamera() {
-    stream?.getTracks().forEach(t => t.stop());
-    stream = null;
-    if (scanLoop) { clearInterval(scanLoop); scanLoop = null; }
+  function stopScanner() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    if (scanningInterval) {
+      clearInterval(scanningInterval);
+      scanningInterval = null;
+    }
+    scanning = false;
     video.srcObject = null;
-    cameraFeed.style.display = 'none';
-    scanStatus.textContent = '';
-    cameraBtn.textContent = 'Scan with camera';
+    if (cameraFeed) cameraFeed.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
+    scannerStatus.textContent = '';
+    cameraBtn.textContent = '📷 START CAMERA SCANNER';
     cameraBtn.disabled = false;
   }
+}
 
-  /* Load jsQR on demand */
-  const jsQRScript = document.createElement('script');
-  jsQRScript.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-  document.head.appendChild(jsQRScript);
-})();
+document.addEventListener('DOMContentLoaded', function() {
+  if (scanBtn) {
+    scanBtn.addEventListener('click', () => handleSingleCheckIn(qrCodeInput.value));
+  }
+  if (qrCodeInput) {
+    qrCodeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSingleCheckIn(qrCodeInput.value);
+    });
+  }
+  if (bulkScanBtn) {
+    bulkScanBtn.addEventListener('click', handleBulkCheckIn);
+  }
+
+  jsQRScript.addEventListener('load', initScanner);
+  if (typeof jsQR !== 'undefined') initScanner();
+});
 </script>
 {% endblock %}

@@ -1,10 +1,11 @@
 {% extends "base/layout.html" %}
-{% block title %}{{ venue.name }} · TickIt{% endblock %}
+
+{% block title %}{{ venue.name }} · Venue Details · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:venue_list') }}">Venues</a>
-    <span class="breadcrumb__sep">›</span>
+    <a href="{{ url('events:venue_list') }}">MY VENUES</a>
+    <span class="breadcrumb__sep" aria-hidden="true">›</span>
     <span class="breadcrumb__current">{{ venue.name }}</span>
   </nav>
 
@@ -14,15 +15,21 @@
       <h1 class="page-header__title">{{ venue.name }}</h1>
       {% if venue.address %}<p class="page-header__sub">📍 {{ venue.address }}</p>{% endif %}
     </div>
-    <div style="display:flex;gap:1rem;">
+    <div style="display:flex;gap:var(--space-2);">
       <a href="{{ url('events:venue_update', venue.pk) }}" class="btn btn-secondary btn-sm">EDIT VENUE</a>
       <a href="{{ url('events:venue_delete', venue.pk) }}" class="btn btn-danger btn-sm">DELETE</a>
     </div>
   </div>
 
-  <div class="stat-row" style="max-width:440px;margin-bottom:1.5rem;">
-    <div class="stat-card stat-card--accent">
-      <p class="stat-card__label">Max capacity</p>
+  {% if venue.image %}
+    <div class="venue-profile-banner mt-4 mb-4">
+      <img src="{{ venue.image.url }}" alt="{{ venue.name }}" class="venue-profile-banner__img">
+    </div>
+  {% endif %}
+
+  <div class="stat-row mt-4 mb-4" style="max-width:560px;">
+    <div class="stat-card stat-card--orange">
+      <p class="stat-card__label">MAX PHYSICAL CAPACITY</p>
       <p class="stat-card__value">{{ venue.max_capacity }}</p>
       <p class="stat-card__sub">PER EVENT HARD LIMIT</p>
     </div>
@@ -34,24 +41,41 @@
   </div>
 
   <div class="section-header">
-    <h2 class="section-title">Events at this venue</h2>
-    <a href="{{ url('events:event_create') }}" class="btn btn-primary btn-sm">+ New event here</a>
+    <div>
+      <h2 class="section-title">SCHEDULED EVENTS AT THIS VENUE</h2>
+      <p style="font-size:0.85rem;color:var(--ink-muted);margin:2px 0 0;">All events hosted at {{ venue.name }}.</p>
+    </div>
+    <a href="{{ url('events:event_create') }}" class="btn btn-primary btn-sm">+ SCHEDULE EVENT HERE</a>
   </div>
 
   {% if events %}
     <div class="ledger-wrap">
       <table class="ledger">
         <thead>
-          <tr><th>Event</th><th>Date</th><th>Allocated</th><th>Status</th><th></th></tr>
+          <tr>
+            <th>EVENT NAME</th>
+            <th>DATE &amp; TIME</th>
+            <th>ALLOCATION / CAPACITY</th>
+            <th>STATUS</th>
+            <th>ACTIONS</th>
+          </tr>
         </thead>
         <tbody>
           {% for event in events %}
             <tr>
-              <td style="font-weight:600;">{{ event.name }}</td>
-              <td class="mono">{{ event.date.strftime('%b %-d, %Y') }}</td>
-              <td class="mono">{{ event.allocated_capacity }} / {{ venue.max_capacity }}</td>
-              <td><span class="badge badge-{{ event.status }}">{{ event.get_status_display() }}</span></td>
-              <td><a href="{{ url('events:organizer_event_detail', event.pk) }}" class="btn btn-secondary btn-sm">Manage</a></td>
+              <td style="font-weight:700;">{{ event.name }}</td>
+              <td class="mono">{{ event.date.strftime('%b %d, %Y · %I:%M %p') }}</td>
+              <td class="mono" style="font-weight:700;">
+                {{ event.allocated_capacity }} / {{ venue.max_capacity }}
+              </td>
+              <td>
+                <span class="badge badge-{{ event.status }}">{{ event.get_status_display() }}</span>
+              </td>
+              <td>
+                <a href="{{ url('events:organizer_event_detail', event.pk) }}" class="btn btn-secondary btn-sm">
+                  MANAGE →
+                </a>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -64,4 +88,3 @@
     </div>
   {% endif %}
 {% endblock %}
-

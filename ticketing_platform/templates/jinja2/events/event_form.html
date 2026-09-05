@@ -1,281 +1,53 @@
 {% extends "base/layout.html" %}
-{% block title %}{{ title }} · TickIt{% endblock %}
 
-{% block extra_head %}
-<style>
-.form-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  margin-bottom: 1.25rem;
-  box-shadow: var(--shadow-xs);
-}
-.form-section__header {
-  padding: 14px 22px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: .6rem;
-}
-.form-section__number {
-  width: 22px; height: 22px; flex-shrink: 0;
-  background: var(--accent); color: #fff;
-  border-radius: 50%; font-size: .72rem; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-}
-.form-section__title {
-  font-size: .82rem; font-weight: 700; color: var(--t1); margin: 0;
-}
-.form-section__subtitle {
-  font-size: .75rem; color: var(--t3); margin: 0;
-}
-.form-section__body {
-  padding: 22px;
-}
-.form-row-2 {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
-}
-.form-row-3 {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
-}
-.form-field { display: flex; flex-direction: column; gap: .3rem; }
-.form-field label {
-  font-size: .78rem; font-weight: 600; color: var(--t2);
-}
-.form-field input, .form-field select, .form-field textarea {
-  font-family: var(--font); font-size: .9rem; color: var(--t1);
-  padding: .58em .85em;
-  border: 1px solid var(--border-2); border-radius: var(--r);
-  background: var(--surface); box-shadow: var(--shadow-xs);
-  outline: none; transition: border-color .12s, box-shadow .12s;
-  -webkit-appearance: none; appearance: none; box-sizing: border-box; width: 100%;
-}
-.form-field input:focus, .form-field select:focus, .form-field textarea:focus {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-xs), 0 0 0 3px rgba(91,76,245,.12);
-}
-.form-field textarea { resize: vertical; min-height: 88px; }
-.form-field .helptext { font-size: .72rem; color: var(--t4); }
-.form-field .errorlist { list-style: none; padding: 0; margin: .2rem 0 0; color: var(--err); font-size: .78rem; font-weight: 600; }
-.form-field select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right .75em center;
-  padding-right: 2.2em;
-}
-.required-star { color: var(--err); margin-left: 2px; }
-@media (max-width: 640px) {
-  .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
-}
-</style>
-{% endblock %}
+{% block title %}{{ title }} · TickIt Back Office{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
-    <span class="breadcrumb__sep">›</span>
+    <a href="{{ url('events:organizer_event_list') }}">MY EVENTS</a>
+    <span class="breadcrumb__sep" aria-hidden="true">›</span>
     <span class="breadcrumb__current">{{ title }}</span>
   </nav>
 
   <div class="page-header">
-    <p class="page-header__eyebrow">Organizer</p>
+    <p class="page-header__eyebrow">EVENT CONFIGURATION // BACK OFFICE</p>
     <h1 class="page-header__title">{{ title }}</h1>
-    <p class="page-header__sub">Fields marked <span style="color:var(--err);">*</span> are required.</p>
   </div>
 
-  {% if form.non_field_errors() %}
-    <div class="alert alert-error" style="margin-bottom:1.25rem;max-width:760px;">{{ form.non_field_errors() }}</div>
-  {% endif %}
-
-  <form method="post" style="max-width:760px;">
-    {{ csrf_input }}
-
-    {# ── Section 1: Core details ──────────────────────────────── #}
-    <div class="form-section">
-      <div class="form-section__header">
-        <div class="form-section__number">1</div>
-        <div>
-          <p class="form-section__title">Event details</p>
-          <p class="form-section__subtitle">The essentials — name, venue, date, and capacity.</p>
+  <div class="form-shell">
+    <div class="form-wrap">
+      {% if form.non_field_errors() %}
+        <div class="alert alert-error" style="margin-bottom:var(--space-4);">
+          {{ form.non_field_errors() }}
         </div>
-      </div>
-      <div class="form-section__body">
-        <div class="form-field" style="margin-bottom:1rem;">
-          <label for="id_name">Event name <span class="required-star">*</span></label>
-          {{ form.name }}
-          {% if form.name.errors %}<ul class="errorlist">{% for e in form.name.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-        </div>
-        <div class="form-field" style="margin-bottom:1rem;">
-          <label for="id_tagline">Tagline <span style="color:var(--t4);font-weight:400;">(optional)</span></label>
-          {{ form.tagline }}
-          <span class="helptext">A short one-liner shown on event cards.</span>
-          {% if form.tagline.errors %}<ul class="errorlist">{% for e in form.tagline.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-        </div>
-        <div class="form-row-2" style="margin-bottom:1rem;">
-          <div class="form-field">
-            <label for="id_venue">Venue <span class="required-star">*</span></label>
-            {{ form.venue }}
-            {% if form.venue.errors %}<ul class="errorlist">{% for e in form.venue.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      {% endif %}
+      <form method="post" enctype="multipart/form-data">
+        {{ csrf_input }}
+        {% if form.instance.pk and form.instance.image %}
+          <div class="mb-4" style="border:2px solid var(--ink);padding:var(--space-3);background:var(--paper-dark);box-shadow:var(--shadow-print-sm);">
+            <p style="font-family:var(--font-mono);font-size:0.75rem;font-weight:700;color:var(--orange-dark);margin:0 0 var(--space-2);">CURRENT EVENT POSTER</p>
+            <img src="{{ form.instance.image.url }}" alt="{{ form.instance.name }}" style="max-height:160px;width:auto;display:block;border:1px solid var(--ink);object-fit:cover;">
           </div>
-          <div class="form-field">
-            <label for="id_allocated_capacity">Allocated capacity <span class="required-star">*</span></label>
-            {{ form.allocated_capacity }}
-            <span class="helptext">Cannot exceed venue's max capacity.</span>
-            {% if form.allocated_capacity.errors %}<ul class="errorlist">{% for e in form.allocated_capacity.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
+        {% endif %}
+        {{ form.as_p() }}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">SAVE EVENT CONFIGURATION →</button>
+          <a href="{{ url('events:organizer_event_list') }}" class="btn btn-ghost">CANCEL</a>
         </div>
-        <div class="form-row-2" style="margin-bottom:1rem;">
-          <div class="form-field">
-            <label for="id_date">Start date & time <span class="required-star">*</span></label>
-            {{ form.date }}
-            {% if form.date.errors %}<ul class="errorlist">{% for e in form.date.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
-          <div class="form-field">
-            <label for="id_end_date">End date & time <span style="color:var(--t4);font-weight:400;">(optional)</span></label>
-            {{ form.end_date }}
-            {% if form.end_date.errors %}<ul class="errorlist">{% for e in form.end_date.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-field">
-            <label for="id_status">Status</label>
-            {{ form.status }}
-            <span class="helptext">Keep as Draft while setting up. Publish when ready.</span>
-            {% if form.status.errors %}<ul class="errorlist">{% for e in form.status.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
-          <div></div>
-        </div>
-      </div>
+      </form>
     </div>
 
-    {# ── Section 2: Classification ──────────────────────────────── #}
-    <div class="form-section">
-      <div class="form-section__header">
-        <div class="form-section__number">2</div>
-        <div>
-          <p class="form-section__title">Classification</p>
-          <p class="form-section__subtitle">Category, location type, and tags help attendees find your event.</p>
-        </div>
-      </div>
-      <div class="form-section__body">
-        <div class="form-row-3" style="margin-bottom:1rem;">
-          <div class="form-field">
-            <label for="id_category">Category</label>
-            {{ form.category }}
-          </div>
-          <div class="form-field">
-            <label for="id_location_type">Location type</label>
-            {{ form.location_type }}
-          </div>
-          <div class="form-field">
-            <label for="id_website">Website / link</label>
-            {{ form.website }}
-            {% if form.website.errors %}<ul class="errorlist">{% for e in form.website.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
-        </div>
-        <div class="form-field">
-          <label for="id_tags">Tags</label>
-          {{ form.tags }}
-          <span class="helptext">{{ form.tags.help_text }}</span>
-          {% if form.tags.errors %}<ul class="errorlist">{% for e in form.tags.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-        </div>
-      </div>
-    </div>
-
-    {# ── Section 3: Description ──────────────────────────────────── #}
-    <div class="form-section">
-      <div class="form-section__header">
-        <div class="form-section__number">3</div>
-        <div>
-          <p class="form-section__title">Description</p>
-          <p class="form-section__subtitle">Tell attendees what the event is about.</p>
-        </div>
-      </div>
-      <div class="form-section__body">
-        <div class="form-field">
-          <label for="id_description">About this event</label>
-          {{ form.description }}
-          {% if form.description.errors %}<ul class="errorlist">{% for e in form.description.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-        </div>
-      </div>
-    </div>
-
-    {# ── Section 4: Visual customisation ─────────────────────────── #}
-    <div class="form-section">
-      <div class="form-section__header">
-        <div class="form-section__number">4</div>
-        <div>
-          <p class="form-section__title">Visual customisation</p>
-          <p class="form-section__subtitle">Personalise the event banner with a colour or image.</p>
-        </div>
-      </div>
-      <div class="form-section__body">
-        <div class="form-row-2" style="margin-bottom:1rem;">
-          <div class="form-field">
-            <label for="id_cover_color">Banner colour</label>
-            <div style="display:flex;align-items:center;gap:.75rem;">
-              {{ form.cover_color }}
-              <span id="color-preview" style="width:80px;height:36px;border-radius:var(--r-sm);border:1px solid var(--border);background:{% if form.cover_color.value() %}{{ form.cover_color.value() }}{% else %}var(--accent){% endif %};display:inline-block;"></span>
-            </div>
-            <span class="helptext">{{ form.cover_color.help_text }}</span>
-            {% if form.cover_color.errors %}<ul class="errorlist">{% for e in form.cover_color.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
-          <div class="form-field">
-            <label for="id_cover_image">Cover image URL</label>
-            {{ form.cover_image }}
-            <span class="helptext">{{ form.cover_image.help_text }}</span>
-            {% if form.cover_image.errors %}<ul class="errorlist">{% for e in form.cover_image.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          </div>
-        </div>
-
-        {# Live preview #}
-        <div style="margin-top:.5rem;">
-          <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t4);margin-bottom:.5rem;">Preview</p>
-          <div id="banner-preview" style="height:80px;border-radius:var(--r-lg);background:linear-gradient(135deg,var(--accent),var(--accent-dark));display:flex;align-items:center;padding:0 20px;transition:background .2s;">
-            <span id="preview-name" style="font-size:1.1rem;font-weight:800;color:#fff;letter-spacing:-.02em;">{{ form.instance.name or 'Event name' }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary btn-lg">Save event</button>
-      <a href="{{ url('events:organizer_event_list') }}" class="btn btn-ghost">Cancel</a>
-    </div>
-  </form>
+    <aside class="form-hint">
+      <h3 class="form-hint__title">OPERATOR NOTES</h3>
+      <ul>
+        <li>Choose an iconic, searchable event title.</li>
+        <li>Upload high-impact poster artwork (16:9 or 4:3 recommended) for public listings.</li>
+        <li>Allocated capacity cannot exceed the selected venue's physical max capacity.</li>
+        <li>Set status to <strong>Draft</strong> while configuring tiers — switch to <strong>Published</strong> to open public reservations.</li>
+        <li>Configure specific ticket tiers (pricing and quotas) after saving.</li>
+      </ul>
+    </aside>
+  </div>
 {% endblock %}
 
-{% block extra_scripts %}
-<script>
-const colorInput   = document.getElementById('id_cover_color');
-const imageInput   = document.getElementById('id_cover_image');
-const nameInput    = document.getElementById('id_name');
-const preview      = document.getElementById('banner-preview');
-const previewName  = document.getElementById('preview-name');
-const colorPreview = document.getElementById('color-preview');
 
-function updatePreview() {
-  const color = colorInput?.value?.trim();
-  const img   = imageInput?.value?.trim();
-  if (img) {
-    preview.style.backgroundImage = `url('${img}')`;
-    preview.style.backgroundSize  = 'cover';
-    preview.style.backgroundPosition = 'center';
-    preview.style.background = '';
-  } else if (color) {
-    preview.style.backgroundImage = '';
-    preview.style.background = `linear-gradient(135deg, ${color}, ${color}99)`;
-    if (colorPreview) colorPreview.style.background = color;
-  } else {
-    preview.style.backgroundImage = '';
-    preview.style.background = 'linear-gradient(135deg,var(--accent),var(--accent-dark))';
-    if (colorPreview) colorPreview.style.background = 'var(--accent)';
-  }
-  if (nameInput && previewName) previewName.textContent = nameInput.value || 'Event name';
-}
-
-colorInput?.addEventListener('input', updatePreview);
-imageInput?.addEventListener('input', updatePreview);
-nameInput?.addEventListener('input',  updatePreview);
-updatePreview();
-</script>
-{% endblock %}

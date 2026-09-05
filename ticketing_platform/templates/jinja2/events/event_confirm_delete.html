@@ -1,25 +1,26 @@
 {% extends "base/layout.html" %}
+
 {% block title %}Delete {{ event.name }} · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
-    <span class="breadcrumb__sep">›</span>
+    <a href="{{ url('events:organizer_event_list') }}">MY EVENTS</a>
+    <span class="breadcrumb__sep" aria-hidden="true">›</span>
     <a href="{{ url('events:organizer_event_detail', event.pk) }}">{{ event.name }}</a>
-    <span class="breadcrumb__sep">›</span>
-    <span class="breadcrumb__current">Delete</span>
+    <span class="breadcrumb__sep" aria-hidden="true">›</span>
+    <span class="breadcrumb__current">DELETE</span>
   </nav>
 
   <div class="page-header">
-    <p class="page-header__eyebrow">Organizer</p>
-    <h1 class="page-header__title">Delete Event</h1>
+    <p class="page-header__eyebrow">DESTRUCTIVE ACTION // BACK OFFICE</p>
+    <h1 class="page-header__title">DELETE EVENT</h1>
   </div>
 
   <div class="danger-panel">
     <p>
       You are about to permanently delete <strong>{{ event.name }}</strong>
-      ({{ event.date.strftime('%b %d, %Y') }} · {{ event.venue.name }}).
-      All ticket tiers will also be removed. This cannot be undone.
+      scheduled for {{ event.date.strftime('%b %d, %Y') }} at {{ event.venue.name }}.
+      All associated ticket tiers will be removed. This action cannot be undone.
     </p>
     <form method="post">
       {{ csrf_input }}
@@ -30,3 +31,4 @@
     </form>
   </div>
 {% endblock %}
+
