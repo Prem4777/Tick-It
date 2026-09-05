@@ -1,3 +1,15 @@
+"""
+Tickets services — all inventory-mutating operations live here.
+
+Every function that touches ticket counts or check-in state runs inside a
+transaction.atomic() with select_for_update() on the row being mutated.
+This is the primary defence against overselling and duplicate check-ins.
+
+SQLite note: SQLite locks the entire DB file on any write transaction, so
+select_for_update() is technically a no-op there. The code is still written
+correctly so it degrades gracefully if the DB is upgraded to Postgres.
+"""
+
 from datetime import timedelta
 from io import BytesIO
 import secrets
@@ -10,27 +22,45 @@ from django.utils import timezone
 import qrcode
 
 from .models import Reservation, Ticket, TicketType
-
 from apps.events.models import Event
 
+# How long a reservation holds inventory before it auto-expires.
 RESERVATION_LOCK_MINUTES = 10
 
 
+# ---------------------------------------------------------------------------
+# Reservation (cart locking)
+# ---------------------------------------------------------------------------
+
 def reserve_tickets(ticket_type_id, user, quantity):
+    """
+    Create a time-limited reservation for `quantity` tickets of the given tier.
+
+    Uses select_for_update() on the TicketType row to prevent two concurrent
+    requests from both seeing available_count > 0 and both creating reservations
+    that together exceed the available stock (classic read-then-write race).
+
+    Raises ValidationError if:
+      - quantity < 1
+      - the event is not published
+      - available stock is less than requested
+    """
     if quantity < 1:
         raise ValidationError("Quantity must be at least 1.")
 
     with transaction.atomic():
-        TicketType.objects.filter(pk=ticket_type_id).update(
-            quantity_sold=F("quantity_sold")
+        # Lock the row — any concurrent reserve_tickets() for the same tier
+        # will block here until this transaction commits.
+        ticket_type = TicketType.objects.select_for_update().get(
+            pk=ticket_type_id
         )
-        ticket_type = TicketType.objects.select_for_update().get(pk=ticket_type_id)
 
         if ticket_type.event.status != Event.Status.PUBLISHED:
             raise ValidationError(
                 "Tickets are not available for this event yet."
             )
 
+        # Re-read available_count after acquiring the lock to get post-lock state.
         available = ticket_type.available_count()
         if quantity > available:
             raise ValidationError(
@@ -41,13 +71,21 @@ def reserve_tickets(ticket_type_id, user, quantity):
             ticket_type=ticket_type,
             user=user,
             quantity=quantity,
-            expires_at=timezone.now()
-            + timedelta(minutes=RESERVATION_LOCK_MINUTES),
+            expires_at=timezone.now() + timedelta(minutes=RESERVATION_LOCK_MINUTES),
             status=Reservation.Status.ACTIVE,
         )
 
 
+# ---------------------------------------------------------------------------
+# Ticket generation helpers
+# ---------------------------------------------------------------------------
+
 def generate_unique_code():
+    """
+    Generate a URL-safe random token that doesn't already exist in the DB.
+    secrets.token_urlsafe(24) produces ~32 characters of high-entropy text.
+    Collision probability is negligible but we loop to be safe.
+    """
     while True:
         code = secrets.token_urlsafe(24)
         if not Ticket.objects.filter(unique_code=code).exists():
@@ -55,7 +93,15 @@ def generate_unique_code():
 
 
 def _create_ticket(ticket_type, user):
+    """
+    Create a Ticket record and generate its QR code PNG.
+
+    Internal helper called from checkout_cart() and promote_next().
+    Not intended to be called directly from views.
+    """
     code = generate_unique_code()
+
+    # Save the ticket record first so we have a PK before attaching the image.
     ticket = Ticket(
         ticket_type=ticket_type,
         event=ticket_type.event,
@@ -64,15 +110,38 @@ def _create_ticket(ticket_type, user):
         status=Ticket.Status.ACTIVE,
     )
     ticket.save()
+
+    # Generate a QR PNG in memory and attach it to the ticket's ImageField.
     img = qrcode.make(code)
     buf = BytesIO()
     img.save(buf, format="PNG")
-    ticket.qr_image.save(f"{code}.png", ContentFile(buf.getvalue()), save=True)
+    ticket.qr_image.save(
+        f"{code}.png", ContentFile(buf.getvalue()), save=True
+    )
     return ticket
 
 
+# ---------------------------------------------------------------------------
+# Checkout
+# ---------------------------------------------------------------------------
+
 def checkout_cart(user):
+    """
+    Convert all active, non-expired reservations for a user into real Tickets.
+
+    Locks all relevant TicketType rows before mutating quantity_sold to prevent
+    concurrent checkouts from double-counting the same reservation.
+
+    Raises ValidationError if:
+      - the cart is empty or all reservations have expired
+      - a reservation expires in the moment between cart view and checkout submit
+      - not enough tickets remain (should be rare due to reservation locking)
+
+    Returns a list of created Ticket objects.
+    """
     now = timezone.now()
+
+    # Snapshot the active reservations before opening the transaction.
     reservations = list(
         Reservation.objects.filter(
             user=user,
@@ -80,14 +149,15 @@ def checkout_cart(user):
             expires_at__gt=now,
         ).select_related("ticket_type")
     )
+
     if not reservations:
         raise ValidationError("Your cart is empty or all holds have expired.")
 
+    # Lock all affected TicketType rows in a deterministic order to avoid
+    # deadlocks when two users check out overlapping tiers simultaneously.
     type_pks = sorted({r.ticket_type_id for r in reservations})
+
     with transaction.atomic():
-        TicketType.objects.filter(pk__in=type_pks).update(
-            quantity_sold=F("quantity_sold")
-        )
         locked_types = {
             tt.pk: tt
             for tt in TicketType.objects.select_for_update().filter(
@@ -98,19 +168,31 @@ def checkout_cart(user):
         created_tickets = []
         for r in reservations:
             tt = locked_types[r.ticket_type_id]
+
+            # Re-read the reservation after acquiring the lock to catch any
+            # expiry that happened between the snapshot and now.
             r.refresh_from_db()
             if r.status != Reservation.Status.ACTIVE or r.expires_at <= now:
                 raise ValidationError(
                     "A reservation expired during checkout. Please try again."
                 )
+
+            # Final stock check inside the lock.
             if tt.quantity_sold + r.quantity > tt.quantity_total:
                 raise ValidationError(
                     f"Not enough tickets left for {tt.name}."
                 )
+
+            # Mark reservation as converted so it doesn't show in the cart
+            # and can't be used again.
             r.status = Reservation.Status.CONVERTED
             r.save()
+
+            # Increment sold count.
             tt.quantity_sold += r.quantity
             tt.save()
+
+            # Create one Ticket record per unit purchased.
             for _ in range(r.quantity):
                 ticket = _create_ticket(tt, user)
                 created_tickets.append(ticket)
@@ -118,186 +200,172 @@ def checkout_cart(user):
         return created_tickets
 
 
+# ---------------------------------------------------------------------------
+# Check-in (V4)
+# ---------------------------------------------------------------------------
+
 def checkin_ticket(qr_code, event_id, staff_user):
-    """Check in a single ticket by its unique QR code.
-    
+    """
+    Check in a single ticket by scanning its QR code.
+
+    Uses a conditional UPDATE (WHERE checked_in_at IS NULL) as the
+    concurrency lock — if two scanners scan the same code simultaneously,
+    only one UPDATE will affect a row. The loser gets rows_updated=0 and
+    returns 'already_checked_in'.
+
     Args:
-        qr_code: The ticket's unique_code value
-        event_id: The event ID to verify ticket belongs to
-        staff_user: The user performing the check-in
-    
-    Returns:
-        dict with keys: status, ticket_id (if checked in), message
-        Possible statuses: checked_in, already_checked_in, invalid_qr, wrong_event, ticket_not_eligible
+        qr_code:    The ticket's unique_code string.
+        event_id:   ID of the event — ensures the ticket belongs to this event.
+        staff_user: The User performing the check-in (stored for audit trail).
+
+    Returns a dict with key 'status' and one of:
+        checked_in        — success, ticket is now marked as checked in.
+        already_checked_in — ticket was already scanned.
+        invalid_qr        — code not found in the system.
+        wrong_event       — code belongs to a different event.
     """
     now = timezone.now()
-    
+
     with transaction.atomic():
-        # Step 1: Attempt atomic conditional check-in directly
-        # The WHERE clause ensures this only succeeds if checked_in_at is NULL
-        # This is the primary concurrency prevention mechanism - database-enforced
+        # Atomic conditional update — only succeeds if not already checked in.
+        # This is the primary duplicate-scan prevention mechanism.
         rows_updated = Ticket.objects.filter(
             unique_code=qr_code,
             event_id=event_id,
-            checked_in_at__isnull=True,
+            checked_in_at__isnull=True,   # Only match un-scanned tickets
         ).update(
             checked_in_at=now,
             checked_in_by=staff_user,
         )
-        
-        # Step 2: Check result and generate appropriate response
+
         if rows_updated == 1:
-            # Check-in succeeded - ticket is now marked as checked in
+            # Success — fetch the updated ticket to return its ID.
             ticket = Ticket.objects.get(unique_code=qr_code, event_id=event_id)
             return {
                 "status": "checked_in",
                 "ticket_id": str(ticket.pk),
-                "checked_in_at": ticket.checked_in_at.isoformat() if ticket.checked_in_at else None,
+                "checked_in_at": ticket.checked_in_at.isoformat(),
                 "checked_in_by": str(ticket.checked_in_by) if ticket.checked_in_by else None,
             }
-        else:
-            # Affected rows = 0 means either:
-            # (a) Ticket was already checked in by a concurrent request, or
-            # (b) Ticket doesn't exist or doesn't belong to this event
-            # Step 2a: Check if the ticket exists at all
-            ticket = Ticket.objects.filter(unique_code=qr_code).first()
-            if ticket is None:
-                # Ticket doesn't exist in the system
-                return {"status": "invalid_qr", "message": "QR code not found or does not belong to this event"}
-            
-            # Step 2b: Ticket exists but belongs to a different event
-            if ticket.event_id != event_id:
-                return {"status": "wrong_event", "message": "Ticket belongs to another event"}
-            
-            # Step 2c: Ticket exists and is for this event, but already checked in
+
+        # rows_updated == 0 — diagnose why.
+        ticket = Ticket.objects.filter(unique_code=qr_code).first()
+
+        if ticket is None:
             return {
-                "status": "already_checked_in",
-                "ticket_id": str(ticket.pk),
-                "message": "Ticket has already been checked in",
+                "status": "invalid_qr",
+                "message": "QR code not found or does not belong to this event",
             }
+
+        if ticket.event_id != event_id:
+            return {
+                "status": "wrong_event",
+                "message": "Ticket belongs to another event",
+            }
+
+        # Ticket exists for this event but was already checked in.
+        return {
+            "status": "already_checked_in",
+            "ticket_id": str(ticket.pk),
+            "message": "Ticket has already been checked in",
+        }
 
 
 def bulk_checkin_tickets(qr_codes, event_id, staff_user):
-    """Bulk check-in multiple tickets by their QR codes.
-    
-    Args:
-        qr_codes: List of unique_code strings to check in
-        event_id: The event ID all tickets must belong to
-        staff_user: The user performing the check-ins
-    
-    Returns:
-        dict with keys: results (list of per-QR results), total_processed
-        Each result has: qr_code, status, ticket_id (if applicable), message
-        Possible statuses: checked_in, already_checked_in, invalid_qr, wrong_event, ticket_not_eligible, duplicate_in_request
     """
-    from django.db import transaction as db_transaction
-    
+    Check in multiple tickets in a single request.
+
+    Each code is processed independently — one failure does not roll back
+    the others. Duplicate codes within the same batch are detected before
+    hitting the database.
+
+    Args:
+        qr_codes:   List of unique_code strings (max 100).
+        event_id:   All tickets must belong to this event.
+        staff_user: The User performing the check-ins.
+
+    Returns a dict with:
+        results         — list of per-code result dicts (same shape as checkin_ticket).
+        total_processed — number of codes submitted.
+    """
+    MAX_BATCH = 100
+
+    if not isinstance(qr_codes, list) or len(qr_codes) == 0:
+        return {"results": [], "total_processed": 0}
+
+    if len(qr_codes) > MAX_BATCH:
+        return {
+            "results": [{"qr_code": c, "status": "batch_too_large",
+                         "message": f"Batch exceeds maximum of {MAX_BATCH}"}
+                        for c in qr_codes],
+            "total_processed": len(qr_codes),
+        }
+
     now = timezone.now()
-    max_batch_size = 100
-    
-    # Validate input
-    if not isinstance(qr_codes, list):
-        return {
-            "results": [
-                {"qr_code": "invalid", "status": "invalid_qr", "message": "qr_codes must be an array"}
-            ],
-            "total_processed": 1,
-        }
-    
-    if len(qr_codes) == 0:
-        return {
-            "results": [],
-            "total_processed": 0,
-        }
-    
-    if len(qr_codes) > max_batch_size:
-        return {
-            "results": [
-                {"qr_code": qr, "status": "batch_too_large", "message": f"Batch exceeds maximum of {max_batch_size} QR codes"}
-            ],
-            "total_processed": 1,
-        }
-    
-    # Deduplicate within request - track first occurrence
+
+    # Deduplicate within the request — track which codes appear more than once.
     seen = set()
-    unique_qr_codes = []
-    duplicate_flags = {}  # qr_code -> is_duplicate
+    unique_codes = []
+    is_duplicate = {}
     for code in qr_codes:
         if code in seen:
-            duplicate_flags[code] = True
+            is_duplicate[code] = True
         else:
             seen.add(code)
-            duplicate_flags[code] = False
-            unique_qr_codes.append(code)
-    
+            is_duplicate[code] = False
+            unique_codes.append(code)
+
     results = [None] * len(qr_codes)
-    
-    with db_transaction.atomic():
-        # Step 1: Fetch all matching tickets in a single query
-        # Only fetch tickets for this event with matching unique codes
-        fetched_tickets = Ticket.objects.filter(
-            unique_code__in=unique_qr_codes,
-            event_id=event_id,
-        ).select_related("ticket_type", "event")
-        
-        # Build lookup: unique_code -> ticket
-        ticket_map = {t.unique_code: t for t in fetched_tickets}
-        
-        # Track which QR codes we've already processed (for dedup within batch)
-        processed_qr_codes = set()
-        
-        # Step 2: Process each unique QR code
-        for i, qr_code in enumerate(unique_qr_codes):
-            # Check if this QR code appeared multiple times in the request
-            if duplicate_flags.get(qr_code, False):
-                # This is a duplicate within the same batch
-                # Find all positions where this QR code appears
-                for pos, code in enumerate(qr_codes):
-                    if code == qr_code:
-                        if pos == 0:
-                            # First occurrence - already processed above
-                            pass
-                        else:
-                            # Subsequent duplicates
-                            results[pos] = {
-                                "qr_code": qr_code,
-                                "status": "duplicate_in_request",
-                                "message": "Duplicate QR code within same request",
-                            }
-            
-            # Skip if already processed (shouldn't happen due to dedup, but safety)
-            if qr_code in processed_qr_codes:
+
+    with transaction.atomic():
+        # Batch-fetch all matching tickets in one query to minimise DB round-trips.
+        ticket_map = {
+            t.unique_code: t
+            for t in Ticket.objects.filter(
+                unique_code__in=unique_codes,
+                event_id=event_id,
+            )
+        }
+
+        processed = set()
+
+        for qr_code in unique_codes:
+            if qr_code in processed:
                 continue
-            processed_qr_codes.add(qr_code)
-            
-            # Step 3: Validate QR code exists and belongs to event
+            processed.add(qr_code)
+
+            # Find all positions in the original list for this code.
+            positions = [i for i, c in enumerate(qr_codes) if c == qr_code]
+
+            # Mark any duplicate occurrences (beyond the first) immediately.
+            for pos in positions[1:]:
+                results[pos] = {
+                    "qr_code": qr_code,
+                    "status": "duplicate_in_request",
+                    "message": "Duplicate QR code within same request",
+                }
+
+            first_pos = positions[0]
+
             if qr_code not in ticket_map:
-                # QR code doesn't exist or belongs to different event
-                # Map original positions to results
-                for pos, code in enumerate(qr_codes):
-                    if code == qr_code:
-                        results[pos] = {
-                            "qr_code": qr_code,
-                            "status": "invalid_qr",
-                            "message": "QR code not found or does not belong to this event",
-                        }
+                results[first_pos] = {
+                    "qr_code": qr_code,
+                    "status": "invalid_qr",
+                    "message": "QR code not found or does not belong to this event",
+                }
                 continue
-            
+
             ticket = ticket_map[qr_code]
-            
-            # Step 4: Check ticket eligibility
+
             if ticket.status != Ticket.Status.ACTIVE:
-                for pos, code in enumerate(qr_codes):
-                    if code == qr_code:
-                        results[pos] = {
-                            "qr_code": qr_code,
-                            "status": "ticket_not_eligible",
-                            "message": "Ticket is not available for check-in",
-                        }
+                results[first_pos] = {
+                    "qr_code": qr_code,
+                    "status": "ticket_not_eligible",
+                    "message": "Ticket is not available for check-in",
+                }
                 continue
-            
-            # Step 5: Atomic conditional check-in
-            # This is the key concurrency prevention mechanism
+
+            # Conditional update — same concurrency pattern as checkin_ticket().
             rows_updated = Ticket.objects.filter(
                 pk=ticket.pk,
                 checked_in_at__isnull=True,
@@ -305,50 +373,30 @@ def bulk_checkin_tickets(qr_codes, event_id, staff_user):
                 checked_in_at=now,
                 checked_in_by=staff_user,
             )
-            
-            # Step 6: Record result based on affected rows
+
             if rows_updated == 1:
-                # Check-in succeeded
-                ticket.refresh_from_db()
-                for pos, code in enumerate(qr_codes):
-                    if code == qr_code:
-                        results[pos] = {
-                            "qr_code": qr_code,
-                            "status": "checked_in",
-                            "ticket_id": str(ticket.pk),
-                            "message": "Ticket checked in successfully",
-                        }
+                results[first_pos] = {
+                    "qr_code": qr_code,
+                    "status": "checked_in",
+                    "ticket_id": str(ticket.pk),
+                    "message": "Ticket checked in successfully",
+                }
             else:
-                # Affected rows = 0 means already checked in
-                ticket.refresh_from_db()
-                if ticket.checked_in_at is not None:
-                    for pos, code in enumerate(qr_codes):
-                        if code == qr_code:
-                            results[pos] = {
-                                "qr_code": qr_code,
-                                "status": "already_checked_in",
-                                "ticket_id": str(ticket.pk),
-                                "message": "Ticket has already been checked in",
-                            }
-                else:
-                    for pos, code in enumerate(qr_codes):
-                        if code == qr_code:
-                            results[pos] = {
-                                "qr_code": qr_code,
-                                "status": "already_checked_in",
-                                "message": "Ticket was concurrently checked in",
-                            }
-    
-    # Step 7: Fill in any unprocessed positions (shouldn't happen, but safety)
-    for i, qr_code in enumerate(qr_codes):
-        if results[i] is None:
+                # Another request checked this in concurrently.
+                results[first_pos] = {
+                    "qr_code": qr_code,
+                    "status": "already_checked_in",
+                    "ticket_id": str(ticket.pk),
+                    "message": "Ticket has already been checked in",
+                }
+
+    # Safety fill for any positions that weren't reached (should not happen).
+    for i, r in enumerate(results):
+        if r is None:
             results[i] = {
-                "qr_code": qr_code,
+                "qr_code": qr_codes[i],
                 "status": "processing_error",
                 "message": "Failed to process this QR code",
             }
-    
-    return {
-        "results": results,
-        "total_processed": len(qr_codes),
-    }
+
+    return {"results": results, "total_processed": len(qr_codes)}

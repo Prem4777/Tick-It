@@ -1,32 +1,31 @@
 {% extends "base/layout.html" %}
-
-{% block title %}{{ title }} · TickIt Back Office{% endblock %}
+{% block title %}{{ title }} · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:venue_list') }}">MY VENUES</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
+    <a href="{{ url('events:venue_list') }}">Venues</a>
+    <span class="breadcrumb__sep">›</span>
     <span class="breadcrumb__current">{{ title }}</span>
   </nav>
 
   <div class="page-header">
-    <p class="page-header__eyebrow">FACILITY PROFILE // BACK OFFICE</p>
+    <p class="page-header__eyebrow">Organizer</p>
     <h1 class="page-header__title">{{ title }}</h1>
   </div>
 
   <div class="form-shell">
     <div class="form-wrap">
       {% if form.non_field_errors() %}
-        <div class="alert alert-error" style="margin-bottom:var(--space-4);">
+        <div class="alert alert-error" style="margin-bottom:1rem;">
           {{ form.non_field_errors() }}
         </div>
       {% endif %}
       <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        {{ csrf_input }}
         {% if form.instance.pk and form.instance.image %}
-          <div class="mb-4" style="border:2px solid var(--ink);padding:var(--space-3);background:var(--paper-dark);box-shadow:var(--shadow-print-sm);">
-            <p style="font-family:var(--font-mono);font-size:0.75rem;font-weight:700;color:var(--orange-dark);margin:0 0 var(--space-2);">CURRENT VENUE PHOTO</p>
-            <img src="{{ form.instance.image.url }}" alt="{{ form.instance.name }}" style="max-height:160px;width:auto;display:block;border:1px solid var(--ink);object-fit:cover;">
+          <div class="mb-4" style="border:2px solid var(--t1);padding:1rem;background:var(--surface-2);box-shadow:var(--shadow-xs);">
+            <p style="font-family:var(--mono);font-size:0.75rem;font-weight:700;color:var(--accent);margin:0 0 1rem;">CURRENT VENUE PHOTO</p>
+            <img src="{{ form.instance.image.url }}" alt="{{ form.instance.name }}" style="max-height:160px;width:auto;display:block;border:1px solid var(--t1);object-fit:cover;">
           </div>
         {% endif %}
         {{ form.as_p() }}
@@ -36,16 +35,15 @@
         </div>
       </form>
     </div>
-
     <aside class="form-hint">
-      <h3 class="form-hint__title">CAPACITY &amp; MEDIA POLICIES</h3>
+      <p class="form-hint__title">Tips</p>
       <ul>
-        <li>Upload high-resolution photos showcasing the entrance, stage, or hall layout.</li>
-        <li>Venues are reusable across multiple events on different dates.</li>
-        <li>Max capacity is enforced as an invariant against event allocations.</li>
-        <li>Capacity cannot be lowered below any existing event's allocated tickets.</li>
-        <li>Venues linked to existing events are protected from deletion.</li>
+        <li>Venues are reusable across multiple events.</li>
+        <li>Max capacity caps all events at this venue.</li>
+        <li>You cannot reduce capacity below what existing events have allocated.</li>
+        <li>A venue with active events cannot be deleted.</li>
       </ul>
     </aside>
   </div>
 {% endblock %}
+

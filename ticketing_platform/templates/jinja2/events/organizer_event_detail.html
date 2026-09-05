@@ -1,11 +1,10 @@
 {% extends "base/layout.html" %}
-
-{% block title %}Manage {{ event.name }} · Organizer Operations · TickIt{% endblock %}
+{% block title %}{{ event.name }} · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">MY EVENTS</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
+    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
+    <span class="breadcrumb__sep">›</span>
     <span class="breadcrumb__current">{{ event.name }}</span>
   </nav>
 
@@ -13,42 +12,34 @@
     <div class="page-header" style="margin-bottom:0;">
       <p class="page-header__eyebrow">EVENT CONTROL ROOM // {{ event.venue.name }}</p>
       <h1 class="page-header__title">{{ event.name }}</h1>
-      <p class="page-header__sub">📅 {{ event.date.strftime('%A, %B %d, %Y · %I:%M %p') }}</p>
+      <p class="page-header__sub">{{ event.date.strftime('%A, %B %-d, %Y · %-I:%M %p') }}</p>
     </div>
-    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
-      <a href="{{ url('events:public_event_detail', event.pk) }}" class="btn btn-outline" target="_blank">PUBLIC VIEW ↗</a>
-      <a href="{{ url('events:event_update', event.pk) }}" class="btn btn-secondary">EDIT EVENT</a>
-      <a href="{{ url('events:organizer_event_list') }}" class="btn btn-ghost">← BACK TO LIST</a>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <a href="{{ url('events:event_update', event.pk) }}"    class="btn btn-secondary btn-sm">Edit</a>
+      <a href="{{ url('events:organizer_event_list') }}"      class="btn btn-ghost btn-sm">← Back</a>
     </div>
   </div>
 
-  {% if event.image %}
-    <div class="event-poster-card mt-4 mb-4" style="max-height:240px;">
-      <img src="{{ event.image.url }}" alt="{{ event.name }}" class="event-poster-card__img" style="max-height:240px;">
-    </div>
-  {% endif %}
-
-  {# Stats Grid (§32, §33) #}
   {%- set pct = ((used_capacity / event.allocated_capacity) * 100) | int if event.allocated_capacity > 0 else 0 -%}
-  <div class="stat-row mt-4 mb-4">
+  <div class="stat-row mb-3">
     <div class="stat-card">
       <p class="stat-card__label">EVENT STATUS</p>
       <div style="margin-top:8px;">
         <span class="badge badge-{{ event.status }}">{{ event.get_status_display() }}</span>
       </div>
     </div>
-    <div class="stat-card stat-card--orange">
-      <p class="stat-card__label">TIERS ALLOCATED</p>
+    <div class="stat-card stat-card--accent">
+      <p class="stat-card__label">Allocated</p>
       <p class="stat-card__value">{{ used_capacity }}</p>
-      <p class="stat-card__sub">OF {{ event.allocated_capacity }} TOTAL ALLOCATION</p>
+      <p class="stat-card__sub">of {{ event.allocated_capacity }}</p>
     </div>
     <div class="stat-card">
-      <p class="stat-card__label">VENUE CAPACITY</p>
+      <p class="stat-card__label">Venue cap</p>
       <p class="stat-card__value">{{ event.venue.max_capacity }}</p>
       <p class="stat-card__sub">{{ event.venue.name }}</p>
     </div>
     <div class="stat-card{% if pct >= 90 %} stat-card--red{% elif pct >= 65 %} stat-card--amber{% else %} stat-card--green{% endif %}">
-      <p class="stat-card__label">CAPACITY CONSUMED</p>
+      <p class="stat-card__label">Fill rate</p>
       <p class="stat-card__value">{{ pct }}%</p>
       <div class="capacity-bar" style="margin-top:6px;">
         <div class="capacity-bar__fill{% if pct >= 90 %} capacity-bar__fill--full{% elif pct >= 65 %} capacity-bar__fill--warn{% endif %}" style="width:{{ pct }}%;"></div>
@@ -57,45 +48,42 @@
   </div>
 
   {% if event.description %}
-    <div class="panel mb-4">
-      <h3 class="section-title" style="font-size:1.4rem;margin-bottom:var(--space-2);">EVENT DESCRIPTION</h3>
-      <p style="font-size:0.95rem;color:var(--ink);line-height:1.6;margin:0;">{{ event.description }}</p>
+    <div class="panel mb-3">
+      <p class="section-title" style="margin-bottom:.5rem;">Description</p>
+      <p style="font-size:.875rem;color:var(--t2);margin:0;line-height:1.7;">{{ event.description }}</p>
     </div>
   {% endif %}
 
-  {# Admission & Scanner Control Section (§36, §37) #}
-  {% if user.is_authenticated and user.profile.role == 'organizer' and event.organizer_id == user.id %}
-    <div class="panel card--accent-orange mb-5">
-      <div class="section-header" style="margin:0 0 var(--space-3);">
-        <div>
-          <h2 class="section-title" style="font-size:1.8rem;">VENUE ADMISSION &amp; QR SCANNER</h2>
-          <p style="font-size:0.88rem;color:var(--ink-muted);margin:4px 0 0;">Scan incoming attendee digital tickets and QR passes at the gates.</p>
-        </div>
+  {# Check-in panel #}
+  {% if user.profile.role == 'organizer' and event.organizer_id == user.id %}
+    <div class="panel mb-3">
+      <div class="section-header" style="margin-bottom:.65rem;">
+        <p class="section-title">Check-in</p>
         {% if event.ticket_types.count() > 0 %}
           <a href="{{ url('events:event_bulk_import', event.pk) }}" class="btn btn-secondary btn-sm">
-            ✦ BULK IMPORT VIP GUESTS (CSV)
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Bulk import CSV
           </a>
         {% endif %}
       </div>
-
-      <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-4);">
-        <a href="{{ url('events:checkin_single', event.pk) }}" class="btn btn-primary">
-          📷 LAUNCH LIVE QR SCANNER
-        </a>
-        <a href="{{ url('events:checkin_bulk', event.pk) }}" class="btn btn-outline">
-          ⚡ BULK TEXT CODE CHECK-IN
+      <p style="font-size:.845rem;color:var(--t3);margin:0 0 .875rem;">Scan attendee QR codes at the door.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <a href="{{ url('events:checkin_single', event.pk) }}" class="btn btn-primary btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          Check-in scanner
         </a>
       </div>
     </div>
   {% endif %}
 
-  {# Ticket Tiers Section #}
-  <div class="section-header">
-    <div>
-      <h2 class="section-title">CONFIGURED TICKET TIERS</h2>
-      <p style="font-size:0.85rem;color:var(--ink-muted);margin:2px 0 0;">Pricing tiers, sold quantities, and inventory balance.</p>
-    </div>
-    <a href="{{ url('tickets:ticket_type_create', event.pk) }}" class="btn btn-primary btn-sm">+ ADD NEW TIER</a>
+  {# Ticket tiers #}
+  <div class="section-header mt-2">
+    <h2 class="section-title">Ticket tiers</h2>
+    <a href="{{ url('tickets:ticket_type_create', event.pk) }}" class="btn btn-primary btn-sm">+ Add tier</a>
   </div>
 
   {% if ticket_types %}
@@ -103,12 +91,7 @@
       <table class="ledger">
         <thead>
           <tr>
-            <th>TIER NAME</th>
-            <th>PRICE</th>
-            <th>TOTAL ALLOCATED</th>
-            <th>SOLD / CLAIMED</th>
-            <th>AVAILABLE</th>
-            <th>ACTIONS</th>
+            <th>Tier</th><th>Price</th><th>Total</th><th>Sold</th><th>Available</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -118,23 +101,20 @@
               <td style="font-weight:700;">
                 {{ tt.name }}
                 {% if tt.name | lower in ['vip', 'vip pass', 'premium'] %}
-                  <span class="sticker sticker--vip" style="font-size:0.6rem;padding:1px 5px;margin-left:6px;">VIP</span>
+                  <span class="badge badge-vip"font-size:0.6rem;padding:1px 5px;margin-left:6px;">VIP</span>
                 {% endif %}
               </td>
-              <td class="mono" style="font-weight:800;color:var(--orange-dark);font-size:1.05rem;">₹{{ tt.price }}</td>
+              <td class="mono" style="font-weight:800;color:var(--accent);font-size:1.05rem;">₹{{ tt.price }}</td>
               <td class="mono">{{ tt.quantity_total }}</td>
               <td class="mono">{{ tt.quantity_sold }}</td>
               <td class="mono">
-                {% if avail > 0 %}
-                  <span style="color:var(--success);font-weight:bold;">{{ avail }} AVAILABLE</span>
-                {% else %}
-                  <span style="color:var(--red);font-weight:bold;">0 (EXHAUSTED)</span>
-                {% endif %}
+                {% if avail > 0 %}<span class="text-ok">{{ avail }}</span>
+                {% else %}<span class="text-err">0</span>{% endif %}
               </td>
               <td>
                 <div class="ledger__actions">
-                  <a href="{{ url('tickets:ticket_type_update', tt.pk) }}" class="btn btn-secondary btn-sm">EDIT</a>
-                  <a href="{{ url('tickets:ticket_type_delete', tt.pk) }}" class="btn btn-danger btn-sm">DELETE</a>
+                  <a href="{{ url('tickets:ticket_type_update', tt.pk) }}" class="btn btn-secondary btn-sm">Edit</a>
+                  <a href="{{ url('tickets:ticket_type_delete', tt.pk) }}"  class="btn btn-danger btn-sm">Delete</a>
                 </div>
               </td>
             </tr>
@@ -145,9 +125,10 @@
   {% else %}
     <div class="empty-state">
       <div class="empty-state__icon">🎫</div>
-      <h3 class="empty-state__title">NO TICKET TIERS CREATED.</h3>
-      <p class="empty-state__text">Define pricing tiers (e.g. Early Bird, VIP, General Admission) to open ticket sales.</p>
-      <a href="{{ url('tickets:ticket_type_create', event.pk) }}" class="btn btn-primary btn-sm">+ ADD FIRST TIER</a>
+      <p class="empty-state__title">No tiers yet</p>
+      <p class="empty-state__text">Add a ticket tier to start selling.</p>
+      <a href="{{ url('tickets:ticket_type_create', event.pk) }}" class="btn btn-primary btn-sm">+ Add first tier</a>
     </div>
   {% endif %}
 {% endblock %}
+

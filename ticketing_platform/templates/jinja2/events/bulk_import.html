@@ -21,19 +21,19 @@
 
   <div class="form-shell mt-4">
     <div class="form-wrap">
-      <h3 class="section-title" style="font-size:1.4rem;margin-bottom:var(--space-2);">UPLOAD VIP GUESTS CSV</h3>
-      <p style="font-size:0.9rem;color:var(--ink-muted);margin-bottom:var(--space-4);">
+      <h3 class="section-title" style="font-size:1.4rem;margin-bottom:1rem;">UPLOAD VIP GUESTS CSV</h3>
+      <p style="font-size:0.9rem;color:var(--t3);margin-bottom:1rem;">
         CSV Columns required: <code>email</code>, <code>full_name</code>, and optional <code>ticket_type</code>. Maximum 5MB.
       </p>
 
       {% if form.non_field_errors() %}
-        <div class="alert alert-error" style="margin-bottom:var(--space-4);">
+        <div class="alert alert-error" style="margin-bottom:1rem;">
           {{ form.non_field_errors() }}
         </div>
       {% endif %}
 
       <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        {{ csrf_input }}
         {{ form.as_p() }}
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">START CSV BATCH IMPORT →</button>

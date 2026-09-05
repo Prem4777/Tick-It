@@ -1,14 +1,13 @@
 {% extends "base/layout.html" %}
-
 {% block title %}Delete {{ ticket_type.name }} · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">MY EVENTS</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
+    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
+    <span class="breadcrumb__sep">›</span>
     <a href="{{ url('events:organizer_event_detail', ticket_type.event_id) }}">{{ ticket_type.event.name }}</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
-    <span class="breadcrumb__current">DELETE TIER</span>
+    <span class="breadcrumb__sep">›</span>
+    <span class="breadcrumb__current">Delete tier</span>
   </nav>
 
   <div class="page-header">
@@ -18,12 +17,13 @@
 
   <div class="danger-panel">
     <p>
-      You are about to permanently delete the <strong>{{ ticket_type.name }}</strong> tier
-      from <strong>{{ ticket_type.event.name }}</strong>.
-      Any uncompleted reservations for this tier will be invalidated. This action cannot be undone.
+      You are about to permanently delete the
+      <strong>{{ ticket_type.name }}</strong> tier from
+      <strong>{{ ticket_type.event.name }}</strong>.
+      Any active reservations for this tier will be affected. This cannot be undone.
     </p>
     <form method="post">
-      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      {{ csrf_input }}
       <div class="form-actions">
         <button type="submit" class="btn btn-danger">CONFIRM TIER DELETION</button>
         <a href="{{ url('events:organizer_event_detail', ticket_type.event_id) }}" class="btn btn-secondary">CANCEL</a>

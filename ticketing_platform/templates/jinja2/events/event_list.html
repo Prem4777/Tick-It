@@ -1,6 +1,5 @@
 {% extends "base/layout.html" %}
-
-{% block title %}Discover Events · TickIt Street-Editorial Platform{% endblock %}
+{% block title %}Events · TickIt{% endblock %}
 
 {% block content %}
   <!-- Editorial Poster Hero (§29) -->
@@ -37,12 +36,17 @@
 
   <!-- Page Header & Filter Row -->
   <div class="page-header-row">
-    <div class="page-header" style="margin-bottom:0;">
-      <p class="page-header__eyebrow">Now Playing // Box Office</p>
-      <h2 class="page-header__title">UPCOMING EVENTS</h2>
+    <div class="page-header">
+      <p class="page-header__eyebrow">Upcoming</p>
+      <h1 class="page-header__title">Events</h1>
     </div>
-    {% if events and user.is_authenticated and user.profile.is_organizer() %}
-      <a href="{{ url('events:event_create') }}" class="btn btn-primary cursor-target">+ CREATE EVENT</a>
+    {% if user.is_authenticated and user.profile.is_organizer() %}
+      <a href="{{ url('events:event_create') }}" class="btn btn-primary">+ New event</a>
+    {% elif not user.is_authenticated %}
+      <div style="display:flex;gap:.5rem;">
+        <a href="{{ url('accounts:login') }}"  class="btn btn-secondary btn-sm">Log in</a>
+        <a href="{{ url('accounts:signup') }}" class="btn btn-primary  btn-sm">Sign up</a>
+      </div>
     {% endif %}
   </div>
 
@@ -52,17 +56,17 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <input class="filter-input" type="search" placeholder="SEARCH EVENTS, VENUES, OR DATES…" id="event-search" autocomplete="off">
+        <input class="filter-input" type="search" id="event-search" placeholder="Search events…" autocomplete="off">
       </div>
     </div>
 
     <!-- Editorial Event Cards Grid (§23) -->
     <div class="events-grid" id="events-grid">
-      {% for event in events %}
-        {%- set ns = namespace(min_price=None, total_available=0) -%}
+      {%- for event in events -%}
+        {%- set ns = namespace(min_price=None, avail=0) -%}
         {%- for tt in event.ticket_types.all() -%}
-          {%- set avail = tt.available_count() -%}
-          {%- set ns.total_available = ns.total_available + avail -%}
+          {%- set a = tt.available_count() -%}
+          {%- set ns.avail = ns.avail + a -%}
           {%- if ns.min_price is none or tt.price < ns.min_price -%}{%- set ns.min_price = tt.price -%}{%- endif -%}
         {%- endfor -%}
 
@@ -72,48 +76,37 @@
 
             <div class="event-card-pub__date">
               <strong>{{ event.date.strftime('%d') }}</strong>
-              <span>{{ event.date.strftime('%b').upper() }}</span>
+              <span>{{ event.date.strftime('%b') }}</span>
             </div>
-
-            <div class="event-card-pub__sticker">
-              {% if ns.total_available == 0 and event.ticket_types.exists() %}
-                <span class="sticker sticker--soldout sticker--rotate-right">SOLD OUT</span>
-              {% elif ns.total_available > 0 and ns.total_available <= 10 %}
-                <span class="sticker sticker--live sticker--rotate-right">LIMITED ({{ ns.total_available }} LEFT)</span>
+            {% if ns.avail == 0 and event.ticket_types.exists() %}
+              <span class="event-card-pub__sold">Sold out</span>
+            {% endif %}
+          </div>
+          <div class="event-card-pub__body">
+            <p class="event-card-pub__name">{{ event.name }}</p>
+            <p class="event-card-pub__venue">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;" aria-hidden="true"><path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21z"/></svg>
+              {{ event.venue.name }}{% if event.venue.address %}, {{ event.venue.address }}{% endif %}
+            </p>
+            <div class="event-card-pub__footer">
+              {% if ns.min_price is not none %}
+                <span class="event-card-pub__price">from ₹{{ ns.min_price }}</span>
+              {% endif %}
+              {% if ns.avail > 0 %}
+                <span class="event-card-pub__avail">{{ ns.avail }} left</span>
+              {% elif event.ticket_types.exists() %}
+                <span class="event-card-pub__avail event-card-pub__avail--out">Sold out</span>
               {% else %}
-                <span class="sticker sticker--rotate-right">PASSES OPEN</span>
+                <span style="font-size:.75rem;color:var(--t4);">Tickets TBA</span>
               {% endif %}
             </div>
           </div>
-
-          <div class="event-card-pub__body">
-            <span class="event-card-pub__category">LIVE ENTRY // {{ event.venue.name }}</span>
-            <h3 class="event-card-pub__name">{{ event.name }}</h3>
-            <p class="event-card-pub__venue">
-              📍 {{ event.venue.name }}{% if event.venue.address %} · {{ event.venue.address }}{% endif %}
-              <br>
-              🕒 {{ event.date.strftime('%A · %I:%M %p') }}
-            </p>
-
-            <div class="event-card-pub__footer">
-              <div>
-                {% if ns.min_price is not none %}
-                  <span class="event-card-pub__price">₹{{ ns.min_price }}</span>
-                {% else %}
-                  <span class="event-card-pub__price" style="font-size:1.1rem;color:var(--ink-muted);">TBA</span>
-                {% endif %}
-              </div>
-              <a href="{{ url('events:public_event_detail', event.pk) }}" class="btn btn-primary btn-sm cursor-target">
-                VIEW EVENT →
-              </a>
-            </div>
-          </div>
-        </article>
-      {% endfor %}
+        </a>
+      {%- endfor -%}
     </div>
 
     <script>
-      const inp = document.getElementById('event-search');
+      const inp   = document.getElementById('event-search');
       const cards = document.querySelectorAll('#events-grid .event-card-pub');
       if (inp) {
         inp.addEventListener('input', () => {
@@ -145,10 +138,10 @@
   {% else %}
     <div class="empty-state">
       <div class="empty-state__icon">🎟</div>
-      <h2 class="empty-state__title">NO EVENTS ON THE BOARD YET.</h2>
-      <p class="empty-state__text">Check back soon — events will appear here once published by organizers.</p>
+      <p class="empty-state__title">No events yet</p>
+      <p class="empty-state__text">Events will appear here once published.</p>
       {% if user.is_authenticated and user.profile.is_organizer() %}
-        <a href="{{ url('events:event_create') }}" class="btn btn-primary">+ CREATE FIRST EVENT</a>
+        <a href="{{ url('events:event_create') }}" class="btn btn-primary">+ Create first event</a>
       {% endif %}
     </div>
   {% endif %}

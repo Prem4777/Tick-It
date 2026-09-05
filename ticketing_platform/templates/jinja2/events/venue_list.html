@@ -1,37 +1,23 @@
 {% extends "base/layout.html" %}
-
-{% block title %}My Venues · Back Office · TickIt{% endblock %}
+{% block title %}Venues · TickIt{% endblock %}
 
 {% block content %}
   <div class="page-header-row">
-    <div class="page-header" style="margin-bottom:0;">
-      <p class="page-header__eyebrow">FACILITY INVENTORY // BACK OFFICE</p>
-      <h1 class="page-header__title">MY HOST VENUES</h1>
-      <p class="page-header__sub">Venues establish physical max capacities and are reusable across all your events.</p>
+    <div class="page-header">
+      <p class="page-header__eyebrow">Organizer</p>
+      <h1 class="page-header__title">My Venues</h1>
     </div>
-    {% if venues %}
-      <a href="{{ url('events:venue_create') }}" class="btn btn-primary">+ REGISTER NEW VENUE</a>
-    {% endif %}
+    <a href="{{ url('events:venue_create') }}" class="btn btn-primary">+ New venue</a>
   </div>
 
   {% if venues %}
     <div class="venue-cards mt-4">
       {% for venue in venues %}
         <div class="venue-card">
-          {% if venue.image %}
-            <div class="venue-card__banner">
-              <img src="{{ venue.image.url }}" alt="{{ venue.name }}" class="venue-card__img">
-            </div>
-          {% endif %}
-          <div>
-            <span class="sticker sticker--rotate-left mb-2" style="font-size:0.68rem;padding:2px 6px;">
-              FACILITY #{{ venue.pk }}
-            </span>
-            <h3 class="venue-card__name">{{ venue.name }}</h3>
-            <p class="venue-card__address">
-              📍 {{ venue.address if venue.address else 'No street address registered' }}
-            </p>
-          </div>
+          <p class="venue-card__name">{{ venue.name }}</p>
+          <p class="venue-card__address">
+            {% if venue.address %}{{ venue.address }}{% else %}<span style="color:var(--t4);">No address set</span>{% endif %}
+          </p>
           <div class="venue-card__cap">
             <span class="venue-card__cap-label">MAXIMUM CAPACITY</span>
             <span class="venue-card__cap-value">{{ venue.max_capacity }}</span>
@@ -47,9 +33,9 @@
   {% else %}
     <div class="empty-state">
       <div class="empty-state__icon">📍</div>
-      <h2 class="empty-state__title">NO VENUES REGISTERED YET.</h2>
-      <p class="empty-state__text">Register a venue with its physical capacity before creating your events.</p>
-      <a href="{{ url('events:venue_create') }}" class="btn btn-primary">+ REGISTER FIRST VENUE</a>
+      <p class="empty-state__title">No venues yet</p>
+      <p class="empty-state__text">Create a venue before creating events.</p>
+      <a href="{{ url('events:venue_create') }}" class="btn btn-primary">+ New venue</a>
     </div>
   {% endif %}
 {% endblock %}

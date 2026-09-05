@@ -1,29 +1,28 @@
 {% extends "base/layout.html" %}
-
 {% block title %}Delete {{ event.name }} · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:organizer_event_list') }}">MY EVENTS</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
+    <a href="{{ url('events:organizer_event_list') }}">My Events</a>
+    <span class="breadcrumb__sep">›</span>
     <a href="{{ url('events:organizer_event_detail', event.pk) }}">{{ event.name }}</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
-    <span class="breadcrumb__current">DELETE</span>
+    <span class="breadcrumb__sep">›</span>
+    <span class="breadcrumb__current">Delete</span>
   </nav>
 
   <div class="page-header">
-    <p class="page-header__eyebrow">DESTRUCTIVE ACTION // BACK OFFICE</p>
-    <h1 class="page-header__title">DELETE EVENT</h1>
+    <p class="page-header__eyebrow">Organizer</p>
+    <h1 class="page-header__title">Delete Event</h1>
   </div>
 
   <div class="danger-panel">
     <p>
       You are about to permanently delete <strong>{{ event.name }}</strong>
-      scheduled for {{ event.date.strftime('%b %d, %Y') }} at {{ event.venue.name }}.
-      All associated ticket tiers will be removed. This action cannot be undone.
+      ({{ event.date.strftime('%b %d, %Y') }} · {{ event.venue.name }}).
+      All ticket tiers will also be removed. This cannot be undone.
     </p>
     <form method="post">
-      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      {{ csrf_input }}
       <div class="form-actions">
         <button type="submit" class="btn btn-danger">CONFIRM PERMANENT DELETION</button>
         <a href="{{ url('events:organizer_event_list') }}" class="btn btn-secondary">CANCEL</a>

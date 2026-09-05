@@ -1,28 +1,27 @@
 {% extends "base/layout.html" %}
-
 {% block title %}Delete {{ venue.name }} · TickIt{% endblock %}
 
 {% block content %}
   <nav class="breadcrumb">
-    <a href="{{ url('events:venue_list') }}">MY VENUES</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
+    <a href="{{ url('events:venue_list') }}">Venues</a>
+    <span class="breadcrumb__sep">›</span>
     <a href="{{ url('events:venue_detail', venue.pk) }}">{{ venue.name }}</a>
-    <span class="breadcrumb__sep" aria-hidden="true">›</span>
-    <span class="breadcrumb__current">DELETE</span>
+    <span class="breadcrumb__sep">›</span>
+    <span class="breadcrumb__current">Delete</span>
   </nav>
 
   <div class="page-header">
-    <p class="page-header__eyebrow">DESTRUCTIVE ACTION // BACK OFFICE</p>
-    <h1 class="page-header__title">DELETE VENUE</h1>
+    <p class="page-header__eyebrow">Organizer</p>
+    <h1 class="page-header__title">Delete Venue</h1>
   </div>
 
   <div class="danger-panel">
     <p>
       You are about to permanently delete <strong>{{ venue.name }}</strong>.
-      This action will be rejected if any scheduled events are currently linked to this venue.
+      This will fail if any events are still attached — remove or reassign them first.
     </p>
     <form method="post">
-      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      {{ csrf_input }}
       <div class="form-actions">
         <button type="submit" class="btn btn-danger">CONFIRM VENUE DELETION</button>
         <a href="{{ url('events:venue_detail', venue.pk) }}" class="btn btn-secondary">CANCEL</a>

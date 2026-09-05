@@ -1,6 +1,5 @@
 {% extends "base/layout.html" %}
-
-{% block title %}My Tickets Wallet · TickIt{% endblock %}
+{% block title %}My Tickets · TickIt{% endblock %}
 
 {% block content %}
   <div class="page-header-row">
@@ -9,36 +8,36 @@
       <h1 class="page-header__title">MY TICKETS</h1>
     </div>
     {% if tickets %}
-      <span class="sticker sticker--rotate-right">{{ tickets | length }} PASS{{ 'ES' if tickets | length != 1 else '' }} ACTIVE</span>
+      <p class="page-header__sub">{{ tickets | length }} ticket{{ 's' if tickets | length != 1 }}</p>
     {% endif %}
   </div>
 
   {% if tickets %}
     <div class="ticket-cards mt-4">
       {% for t in tickets %}
-        <a href="{{ url('tickets:ticket_detail', t.pk) }}" class="tkt-card" id="ticket-card-{{ t.pk }}" data-ticket-id="{{ t.pk }}" data-checked-in="{{ 'true' if t.checked_in_at or t.status == 'checked_in' else 'false' }}" aria-label="Pass for {{ t.event.name }}">
+        <a href="{{ url('tickets:ticket_detail', t.pk) }}"
+           class="tkt-card"
+           id="tkt-{{ t.pk }}"
+           data-ticket-id="{{ t.pk }}"
+           data-checked-in="{{ 'true' if t.checked_in_at else 'false' }}"
+           aria-label="{{ t.event.name }} ticket">
           <div class="tkt-card__info">
             <p class="tkt-card__tier">{{ t.ticket_type.name }}</p>
-            <h3 class="tkt-card__event">{{ t.event.name }}</h3>
-            <p class="tkt-card__date">
-              📅 {{ t.event.date.strftime('%b %d, %Y · %I:%M %p') }}
-              <br>
-              📍 {{ t.event.venue.name }}
-            </p>
-            <div style="margin-top:var(--space-2);">
-              {% if t.checked_in_at or t.status == 'checked_in' %}
-                <span class="badge badge-checked_in ticket-badge" id="ticket-badge-{{ t.pk }}">Checked in</span>
+            <p class="tkt-card__event">{{ t.event.name }}</p>
+            <p class="tkt-card__date">{{ t.event.date.strftime('%b %-d, %Y · %-I:%M %p') }}</p>
+            <p class="tkt-card__date">{{ t.event.venue.name }}</p>
+            <div style="margin-top:8px;">
+              {% if t.checked_in_at %}
+                <span class="badge badge-checked_in" id="tbadge-{{ t.pk }}">Checked in</span>
               {% else %}
-                <span class="badge badge-{{ t.status }} ticket-badge" id="ticket-badge-{{ t.pk }}">{{ t.get_status_display() }}</span>
+                <span class="badge badge-{{ t.status }}" id="tbadge-{{ t.pk }}">{{ t.get_status_display() }}</span>
               {% endif %}
             </div>
           </div>
           <div class="tkt-card__stub">
-            <span class="tkt-card__month">{{ t.event.date.strftime('%b').upper() }}</span>
-            <span class="tkt-card__day">{{ t.event.date.strftime('%d') }}</span>
-            <span class="mono" style="font-size:0.6rem;color:var(--ink-muted);margin-top:4px;">
-              {{ t.unique_code[:6] }}…
-            </span>
+            <span class="tkt-card__month">{{ t.event.date.strftime('%b') }}</span>
+            <span class="tkt-card__day">{{ t.event.date.strftime('%-d') }}</span>
+            <span style="font-family:var(--mono);font-size:.55rem;color:rgba(255,255,255,.5);margin-top:4px;">{{ t.unique_code[:6] }}…</span>
           </div>
         </a>
       {% endfor %}
@@ -46,72 +45,50 @@
   {% else %}
     <div class="empty-state">
       <div class="empty-state__icon">🎟</div>
-      <h2 class="empty-state__title">NO TICKETS IN YOUR WALLET.</h2>
-      <p class="empty-state__text">Browse upcoming events and reserve your passes.</p>
-      <a href="{{ url('events:home') }}" class="btn btn-primary">DISCOVER EVENTS →</a>
+      <p class="empty-state__title">No tickets yet</p>
+      <p class="empty-state__text">Browse events and grab your first ticket.</p>
+      <a href="{{ url('events:home') }}" class="btn btn-primary">Browse events</a>
     </div>
   {% endif %}
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-(function() {
-  function markCardCheckedIn(ticketId) {
-    const card = document.getElementById('ticket-card-' + ticketId);
-    if (card && card.dataset.checkedIn !== 'true') {
-      card.dataset.checkedIn = 'true';
-      const badge = document.getElementById('ticket-badge-' + ticketId);
-      if (badge) {
-        badge.className = 'badge badge-checked_in ticket-badge badge-pulse';
-        badge.textContent = 'Checked in';
-      }
-      card.classList.add('badge-pulse');
-    }
+(function () {
+  function markCheckedIn(id) {
+    const card  = document.getElementById('tkt-' + id);
+    const badge = document.getElementById('tbadge-' + id);
+    if (!card || card.dataset.checkedIn === 'true') return;
+    card.dataset.checkedIn = 'true';
+    if (badge) { badge.className = 'badge badge-checked_in badge-pulse'; badge.textContent = 'Checked in'; }
   }
 
-  // Cross-tab broadcast listener
+  /* BroadcastChannel — same-origin cross-tab */
   try {
-    const channel = new BroadcastChannel('tickit_checkin');
-    channel.onmessage = function(e) {
-      if (e.data && e.data.ticket_id) {
-        markCardCheckedIn(e.data.ticket_id);
-      }
-    };
-  } catch(e) {}
+    const ch = new BroadcastChannel('tickit_checkin');
+    ch.onmessage = e => { if (e.data?.ticket_id) markCheckedIn(e.data.ticket_id); };
+  } catch (_) {}
 
-  window.addEventListener('storage', function(e) {
+  /* localStorage fallback */
+  window.addEventListener('storage', e => {
     if (e.key === 'tickit_last_checkin') {
-      try {
-        const data = JSON.parse(e.newValue);
-        if (data && data.ticket_id) {
-          markCardCheckedIn(data.ticket_id);
-        }
-      } catch (err) {}
+      try { const d = JSON.parse(e.newValue); if (d?.ticket_id) markCheckedIn(d.ticket_id); } catch (_) {}
     }
   });
 
-  // Polling server for updates if there are any unchecked tickets
-  async function pollTickets() {
-    const remaining = document.querySelectorAll('.tkt-card[data-checked-in="false"]');
-    if (!remaining.length) return;
-    try {
-      const response = await fetch('{{ url("tickets:my_tickets_status") }}', {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.tickets) {
-          data.tickets.forEach(function(t) {
-            if (t.checked_in) {
-              markCardCheckedIn(t.id);
-            }
-          });
-        }
-      }
-    } catch (err) {}
-  }
+  /* Poll only while unchecked tickets exist */
+  const pending = () => document.querySelectorAll('.tkt-card[data-checked-in="false"]');
+  if (!pending().length) return;
 
-  setInterval(pollTickets, 3000);
+  const timer = setInterval(async () => {
+    if (!pending().length) { clearInterval(timer); return; }
+    try {
+      const r = await fetch('{{ url("tickets:my_tickets_status") }}', { headers: { Accept: 'application/json' } });
+      if (!r.ok) return;
+      const data = await r.json();
+      (data.tickets || []).forEach(t => { if (t.is_checked_in) markCheckedIn(t.id); });
+    } catch (_) {}
+  }, 4000);
 })();
 </script>
 {% endblock %}

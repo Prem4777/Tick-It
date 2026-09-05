@@ -1,180 +1,277 @@
 {% extends "base/layout.html" %}
+{% block title %}Cart · TickIt{% endblock %}
 
-{% block title %}Checkout &amp; Cart · TickIt{% endblock %}
+{% block extra_head %}
+<style>
+/* Amazon-style cart layout */
+.amz-cart {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .amz-cart { grid-template-columns: 1fr; }
+  .amz-sidebar { position: static !important; }
+}
+
+/* Cart item card */
+.cart-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  margin-bottom: .75rem;
+  box-shadow: var(--shadow-xs);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: start;
+}
+.cart-item__icon {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  border-radius: var(--r);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: #fff; font-size: 1.4rem;
+  font-weight: 800; letter-spacing: -.02em;
+}
+.cart-item__event {
+  font-size: .975rem; font-weight: 700; color: var(--t1);
+  letter-spacing: -.01em; margin: 0 0 2px; line-height: 1.3;
+}
+.cart-item__tier {
+  font-size: .8rem; font-weight: 600; color: var(--accent);
+  margin: 0 0 4px;
+}
+.cart-item__meta {
+  font-size: .775rem; color: var(--t3); font-weight: 500;
+  display: flex; flex-wrap: wrap; gap: .2rem .9rem; margin: 4px 0 0;
+}
+.cart-item__meta span { display: flex; align-items: center; gap: .3em; }
+.cart-item__meta svg  { color: var(--t4); }
+.cart-item__expiry {
+  font-size: .72rem; font-weight: 700; color: var(--err);
+  background: var(--err-pale); padding: .15em .55em;
+  border-radius: var(--r-pill); margin-top: 5px; display: inline-block;
+}
+.cart-item__price-col {
+  text-align: right; flex-shrink: 0; min-width: 90px;
+}
+.cart-item__price {
+  font-size: 1.15rem; font-weight: 800; color: var(--t1);
+  letter-spacing: -.02em;
+}
+.cart-item__unit-price {
+  font-size: .72rem; color: var(--t4); margin-top: 1px;
+}
+.cart-item__actions {
+  display: flex; align-items: center; gap: .4rem; margin-top: 10px;
+}
+.qty-stepper {
+  display: flex; align-items: center; gap: 0;
+  border: 1px solid var(--border-2); border-radius: var(--r);
+  overflow: hidden; background: var(--surface);
+}
+.qty-stepper__btn {
+  width: 30px; height: 30px;
+  border: none; background: var(--surface-2); color: var(--t2);
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s;
+}
+.qty-stepper__btn:hover { background: var(--surface-3); }
+.qty-stepper__val {
+  width: 36px; text-align: center; border: none;
+  font-family: var(--mono); font-size: .85rem; font-weight: 600;
+  color: var(--t1); background: var(--surface); padding: 0;
+  -moz-appearance: textfield;
+}
+.qty-stepper__val::-webkit-outer-spin-button,
+.qty-stepper__val::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* Order summary sidebar */
+.amz-sidebar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 22px;
+  position: sticky; top: 72px;
+  box-shadow: var(--shadow-sm);
+}
+.amz-sidebar__title {
+  font-size: 1rem; font-weight: 800; color: var(--t1);
+  letter-spacing: -.02em; margin: 0 0 1rem;
+  padding-bottom: 1rem; border-bottom: 1px solid var(--border);
+}
+.amz-summary-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: .875rem; color: var(--t2); margin-bottom: .55rem;
+}
+.amz-summary-row strong { color: var(--t1); font-weight: 700; font-variant-numeric: tabular-nums; }
+.amz-summary-row--total {
+  font-size: 1rem; font-weight: 800; color: var(--t1);
+  padding-top: .75rem; margin-top: .25rem;
+  border-top: 2px solid var(--border);
+}
+.amz-summary-row--total strong {
+  font-size: 1.35rem; color: var(--accent);
+}
+.amz-checkout-btn {
+  width: 100%; justify-content: center; margin-top: 1rem;
+}
+.amz-secure {
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
+  font-size: .72rem; color: var(--t4); margin-top: .65rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-  <div class="page-header">
-    <p class="page-header__eyebrow">ORDER LEDGER // 10-MINUTE HOLD</p>
-    <h1 class="page-header__title">YOUR CART &amp; RESERVATION</h1>
+  <div class="page-header" style="margin-bottom:1.5rem;">
+    <p class="page-header__eyebrow">Checkout</p>
+    <h1 class="page-header__title">
+      Cart
+      {% if reservations %}
+        <span style="font-size:1rem;font-weight:600;color:var(--t3);letter-spacing:0;">
+          ({{ reservations | length }} item{{ 's' if reservations | length != 1 }})
+        </span>
+      {% endif %}
+    </h1>
   </div>
 
   {% if reservations %}
-    {%- set ns = namespace(grand_total=0, min_expiry=None) -%}
+    {%- set ns = namespace(total=0, items=0) -%}
     {%- for r in reservations -%}
-      {%- set ns.grand_total = ns.grand_total + (r.ticket_type.price * r.quantity) -%}
-      {%- if ns.min_expiry is none or r.expires_at < ns.min_expiry -%}
-        {%- set ns.min_expiry = r.expires_at -%}
-      {%- endif -%}
+      {%- set ns.total = ns.total + (r.ticket_type.price * r.quantity) -%}
+      {%- set ns.items = ns.items + r.quantity -%}
     {%- endfor -%}
 
-    <!-- Reservation Countdown Box (§38, §39) -->
-    <div class="countdown-box" id="countdown-box" data-expiry="{{ ns.min_expiry.isoformat() if ns.min_expiry else '' }}">
-      <div class="countdown-box__label">
-        <span class="countdown-box__title" id="countdown-heading">ACTIVE HOLD COUNTDOWN</span>
-        <span class="countdown-box__sub">TICKETS ARE SECURED. COMPLETE CHECKOUT BEFORE TIMER EXPIRES.</span>
-      </div>
-      <div class="countdown-digits-wrap" id="countdown-digits-wrap">
-        <div class="countdown-digit" id="cd-m1">0</div>
-        <div class="countdown-digit" id="cd-m2">9</div>
-        <span class="countdown-colon">:</span>
-        <div class="countdown-digit" id="cd-s1">5</div>
-        <div class="countdown-digit" id="cd-s2">9</div>
-      </div>
-    </div>
+    <div class="amz-cart">
 
-    <div class="cart-layout">
-      <div class="cart-layout__main">
-        <div class="ledger-wrap">
-          <table class="ledger">
-            <thead>
-              <tr>
-                <th>EVENT</th>
-                <th>TIER</th>
-                <th>QTY</th>
-                <th>PRICE</th>
-                <th>SUBTOTAL</th>
-                <th>HOLD UNTIL</th>
-                <th>ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for r in reservations %}
-                <tr>
-                  <td>
-                    <a href="{{ url('events:public_event_detail', r.ticket_type.event_id) }}" style="font-weight:700;color:var(--ink);">
-                      {{ r.ticket_type.event.name }}
-                    </a>
-                    <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);margin-top:2px;">
-                      {{ r.ticket_type.event.date.strftime('%b %d, %Y · %I:%M %p') }}
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge badge-valid">{{ r.ticket_type.name }}</span>
-                  </td>
-                  <td class="mono">{{ r.quantity }}</td>
-                  <td class="mono">₹{{ r.ticket_type.price }}</td>
-                  <td class="mono" style="color:var(--orange-dark);font-weight:800;font-size:1.1rem;">
-                    ₹{{ (r.ticket_type.price * r.quantity) }}
-                  </td>
-                  <td class="mono" style="font-size:0.8rem;">
-                    {{ r.expires_at.strftime('%I:%M %p') }}
-                  </td>
-                  <td>
-                    <form method="post" action="{{ url('tickets:remove_from_cart', r.pk) }}" class="inline">
-                      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-                      <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--red);">REMOVE</button>
-                    </form>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      {# ── Item list ───────────────────────────────────────────── #}
+      <div>
+        <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t4);margin-bottom:.75rem;">
+          Held tickets
+        </p>
 
-        <div class="mt-4">
-          <a href="{{ url('events:home') }}" class="btn btn-secondary">← KEEP BROWSING</a>
-        </div>
-      </div>
+        {% for r in reservations %}
+          <div class="cart-item">
 
-      <!-- Order Summary Aside -->
-      <aside class="cart-layout__aside">
-        <div class="cart-summary">
-          <h3 class="cart-summary__title">ORDER SUMMARY</h3>
+            {# Icon — first letter of event name #}
+            <div class="cart-item__icon">{{ r.ticket_type.event.name[0] | upper }}</div>
 
-          {% for r in reservations %}
-            <div class="cart-summary__line">
-              <span>{{ r.ticket_type.event.name }} &times; {{ r.quantity }}</span>
-              <strong class="mono">₹{{ (r.ticket_type.price * r.quantity) }}</strong>
+            <div>
+              <p class="cart-item__event">{{ r.ticket_type.event.name }}</p>
+              <p class="cart-item__tier">{{ r.ticket_type.name }}</p>
+              <div class="cart-item__meta">
+                <span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                  </svg>
+                  {{ r.ticket_type.event.date.strftime('%b %d, %Y') }}
+                </span>
+                <span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21z"/>
+                  </svg>
+                  {{ r.ticket_type.event.venue.name }}
+                </span>
+              </div>
+              <span class="cart-item__expiry">
+                ⏱ Hold expires {{ r.expires_at.strftime('%I:%M %p') }}
+              </span>
+
+              {# Quantity stepper + remove #}
+              <div class="cart-item__actions">
+                <div class="qty-stepper">
+                  <button class="qty-stepper__btn" type="button" aria-label="Decrease">−</button>
+                  <input class="qty-stepper__val" type="number" value="{{ r.quantity }}" min="1" readonly>
+                  <button class="qty-stepper__btn" type="button" aria-label="Increase">+</button>
+                </div>
+                <span style="width:1px;height:20px;background:var(--border);flex-shrink:0;margin:0 .1rem;"></span>
+                <form method="post" action="{{ url('tickets:remove_from_cart', r.pk) }}" class="inline">
+                  {{ csrf_input }}
+                  <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--err);padding-left:.35em;padding-right:.35em;">
+                    Remove
+                  </button>
+                </form>
+                <a href="{{ url('events:public_event_detail', r.ticket_type.event_id) }}"
+                   class="btn btn-ghost btn-sm" style="padding-left:.35em;padding-right:.35em;">
+                  View event
+                </a>
+              </div>
             </div>
-          {% endfor %}
 
-          <div class="cart-summary__total">
-            <span>TOTAL DUE</span>
-            <span class="mono" style="color:var(--orange-dark);">₹{{ ns.grand_total }}</span>
+            <div class="cart-item__price-col">
+              <p class="cart-item__price">₹{{ (r.ticket_type.price * r.quantity) }}</p>
+              {% if r.quantity > 1 %}
+                <p class="cart-item__unit-price">₹{{ r.ticket_type.price }} each</p>
+              {% endif %}
+            </div>
+
           </div>
+        {% endfor %}
 
-          <form method="post" action="{{ url('tickets:checkout') }}" style="margin-top:var(--space-4);">
-            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">
-              COMPLETE CHECKOUT ➔
-            </button>
-          </form>
+        <p style="font-size:.8rem;color:var(--t4);margin-top:.25rem;">
+          All holds expire 10 minutes after reserving. Complete checkout to confirm your tickets.
+        </p>
+      </div>
 
-          <p style="font-family:var(--font-mono);font-size:0.68rem;font-weight:700;color:var(--ink-muted);text-align:center;margin-top:var(--space-3);letter-spacing:0.04em;">
-            ✦ IMMEDIATE DIGITAL PASS ISSUANCE WITH QR CODE ✦
-          </p>
+      {# ── Sidebar ─────────────────────────────────────────────── #}
+      <aside class="amz-sidebar">
+        <p class="amz-sidebar__title">Order summary</p>
+
+        {% for r in reservations %}
+          <div class="amz-summary-row">
+            <span style="color:var(--t2);">{{ r.ticket_type.event.name }} &times;{{ r.quantity }}</span>
+            <strong>₹{{ (r.ticket_type.price * r.quantity) }}</strong>
+          </div>
+        {% endfor %}
+
+        <div class="amz-summary-row" style="margin-top:.25rem;color:var(--t3);">
+          <span>{{ ns.items }} ticket{{ 's' if ns.items != 1 }}</span>
+          <span></span>
+        </div>
+
+        <div class="amz-summary-row amz-summary-row--total">
+          <span>Order total</span>
+          <strong>₹{{ ns.total }}</strong>
+        </div>
+
+        <form method="post" action="{{ url('tickets:checkout') }}">
+          {{ csrf_input }}
+          <button type="submit" class="btn btn-primary btn-lg amz-checkout-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            Proceed to checkout
+          </button>
+        </form>
+
+        <div class="amz-secure">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Secure checkout
+        </div>
+
+        <hr class="divider" style="margin:1rem 0;">
+
+        <div style="font-size:.78rem;color:var(--t3);">
+          <p style="font-weight:600;margin:0 0 .3rem;">About your hold</p>
+          <p style="margin:0;line-height:1.55;">Your tickets are temporarily held while you complete checkout. Holds expire and inventory is released automatically if not confirmed.</p>
         </div>
       </aside>
+
     </div>
 
   {% else %}
     <div class="empty-state">
       <div class="empty-state__icon">🛒</div>
-      <h2 class="empty-state__title">YOUR CART IS CURRENTLY EMPTY.</h2>
-      <p class="empty-state__text">Discover events on the board and reserve your entry passes.</p>
-      <a href="{{ url('events:home') }}" class="btn btn-primary">DISCOVER EVENTS →</a>
+      <p class="empty-state__title">Your cart is empty</p>
+      <p class="empty-state__text">Browse events and reserve your tickets to get started.</p>
+      <a href="{{ url('events:home') }}" class="btn btn-primary">Browse events</a>
     </div>
   {% endif %}
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-(function() {
-  const box = document.getElementById('countdown-box');
-  if (!box) return;
-  const expiryStr = box.dataset.expiry;
-  if (!expiryStr) return;
-
-  const expiry = new Date(expiryStr).getTime();
-  const m1 = document.getElementById('cd-m1');
-  const m2 = document.getElementById('cd-m2');
-  const s1 = document.getElementById('cd-s1');
-  const s2 = document.getElementById('cd-s2');
-  const heading = document.getElementById('countdown-heading');
-
-  function updateTimer() {
-    const now = new Date().getTime();
-    const diff = Math.max(0, Math.floor((expiry - now) / 1000));
-
-    if (diff <= 0) {
-      m1.textContent = '0';
-      m2.textContent = '0';
-      s1.textContent = '0';
-      s2.textContent = '0';
-      box.classList.add('countdown-urgent');
-      heading.textContent = 'RESERVATION EXPIRED — TICKETS RELEASED';
-      return;
-    }
-
-    if (diff < 120) {
-      box.classList.add('countdown-urgent');
-      heading.textContent = 'URGENT HOLD: UNDER 2 MINUTES LEFT';
-    }
-
-    const minutes = Math.floor(diff / 60);
-    const seconds = diff % 60;
-
-    const mStr = String(minutes).padStart(2, '0');
-    const sStr = String(seconds).padStart(2, '0');
-
-    m1.textContent = mStr[0];
-    m2.textContent = mStr[1];
-    s1.textContent = sStr[0];
-    s2.textContent = sStr[1];
-  }
-
-  updateTimer();
-  setInterval(updateTimer, 1000);
-})();
-</script>
 {% endblock %}

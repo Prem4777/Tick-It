@@ -7,7 +7,7 @@ goes one level deeper into *how* things work.
 
 Status reflected here: **V1 and V2 implemented**, V3–V5 designed but not yet
 built. Gaps between design and current implementation are called out
-explicitly in Section 9.
+explicitly in Section 9
 
 ---
 
